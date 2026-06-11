@@ -1,0 +1,77 @@
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { AnimatePresence, motion } from "framer-motion";
+import { useSelector } from "react-redux";
+
+import Landing from "@/pages/Landing";
+import Login from "@/pages/auth/Login";
+import OtpVerify from "@/pages/auth/OtpVerify";
+import Onboarding from "@/pages/Onboarding";
+import AppShell from "@/components/layout/AppShell";
+
+import Dashboard from "@/pages/app/Dashboard";
+import Workspaces from "@/pages/app/Workspaces";
+import Projects from "@/pages/app/Projects";
+import ProjectDetail from "@/pages/app/ProjectDetail";
+import Teams from "@/pages/app/Teams";
+import Sprints from "@/pages/app/Sprints";
+import KanbanPage from "@/pages/app/KanbanPage";
+import Reports from "@/pages/app/Reports";
+import Notifications from "@/pages/app/Notifications";
+import Settings from "@/pages/app/Settings";
+import Inbox from "@/pages/app/Inbox";
+import Backlog from "@/pages/app/Backlog";
+import NotFound from "@/pages/NotFound";
+
+function ProtectedRoute({ children }) {
+  const isAuth = useSelector((s) => s.auth.isAuthenticated);
+  const loc = useLocation();
+  if (!isAuth) return <Navigate to="/login" state={{ from: loc }} replace />;
+  return children;
+}
+
+function PageTransition({ children }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -4 }}
+      transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+      className="h-full"
+    >
+      {children}
+    </motion.div>
+  );
+}
+
+export default function App() {
+  const location = useLocation();
+  return (
+    <AnimatePresence mode="wait">
+      <Routes location={location} key={location.pathname}>
+        <Route path="/" element={<PageTransition><Landing /></PageTransition>} />
+        <Route path="/login" element={<PageTransition><Login /></PageTransition>} />
+        <Route path="/login/otp" element={<PageTransition><OtpVerify /></PageTransition>} />
+        <Route path="/onboarding" element={<PageTransition><Onboarding /></PageTransition>} />
+
+        <Route path="/app" element={<ProtectedRoute><AppShell /></ProtectedRoute>}>
+          <Route index element={<Navigate to="/app/dashboard" replace />} />
+          <Route path="dashboard" element={<Dashboard />} />
+          <Route path="workspaces" element={<Workspaces />} />
+          <Route path="projects" element={<Projects />} />
+          <Route path="projects/:id" element={<ProjectDetail />} />
+          <Route path="projects/:id/board" element={<KanbanPage />} />
+          <Route path="teams" element={<Teams />} />
+          <Route path="sprints" element={<Sprints />} />
+          <Route path="kanban" element={<KanbanPage />} />
+          <Route path="backlog" element={<Backlog />} />
+          <Route path="reports" element={<Reports />} />
+          <Route path="notifications" element={<Notifications />} />
+          <Route path="inbox" element={<Inbox />} />
+          <Route path="settings" element={<Settings />} />
+        </Route>
+
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </AnimatePresence>
+  );
+}

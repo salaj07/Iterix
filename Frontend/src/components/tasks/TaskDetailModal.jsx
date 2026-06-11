@@ -1,0 +1,271 @@
+import { useDispatch, useSelector } from "react-redux";
+import { useState } from "react";
+import { motion } from "framer-motion";
+import { MessageSquare, Send, History, Check, X, AlertCircle, Plus, Square, CheckSquare, Calendar, User } from "lucide-react";
+import Modal from "@/components/common/Modal";
+import Avatar from "@/components/common/Avatar";
+import Button from "@/components/common/Button";
+import { Badge, Textarea, Input, Select } from "@/components/common/Primitives";
+import { priorityTone, typeTone, formatRelative, formatDate } from "@/lib/format";
+import {
+  updateTask, addComment, addSubtask, toggleSubtask, moveTask,
+  submitForReview, approveTask, rejectTask, deleteTask,
+} from "@/store/slices/tasksSlice";
+import { push as pushNotif } from "@/store/slices/notificationsSlice";
+import { PRIORITIES, ROLES } from "@/store/seed";
+import { can, ACTIONS } from "@/lib/rbac";
+
+export default function TaskDetailModal({ taskId, onClose }) {
+  const dispatch = useDispatch();
+  const task = useSelector(s => s.tasks.tasks.find(t => t.id === taskId));
+  const members = useSelector(s => s.org.members);
+  const projects = useSelector(s => s.projects.projects);
+  const sprints = useSelector(s => s.sprints.sprints);
+  const user = useSelector(s => s.auth.user);
+  const me = members.find(m => m.id === user?.id);
+  const [comment, setComment] = useState("");
+  const [newSub, setNewSub] = useState("");
+  const [rejectMode, setRejectMode] = useState(false);
+  const [rejectNote, setRejectNote] = useState("");
+
+  if (!task) return <Modal open={false} onClose={onClose} />;
+
+  const assignee = members.find(m => m.id === task.assigneeId);
+  const reporter = members.find(m => m.id === task.reporterId);
+  const project = projects.find(p => p.id === task.projectId);
+  const sprint = sprints.find(s => s.id === task.sprintId);
+  const role = me?.role;
+  const isAssignee = task.assigneeId && task.assigneeId === user?.id;
+  const canMoveAny = can(role, ACTIONS.MOVE_TASK_ANY);
+  const canReview = can(role, ACTIONS.APPROVE_TASK) && task.status === "In Review";
+  const canSubmitForReview = task.status === "In Progress" && (canMoveAny || isAssignee);
+  const canStartTodo = task.status === "Todo" && (canMoveAny || isAssignee);
+  const canPickFromBacklog = task.status === "Backlog" && canMoveAny;
+  const canDelete = can(role, ACTIONS.DELETE_TASK);
+  const canEditFields = canMoveAny || isAssignee;
+
+  const submitComment = () => {
+    if (!comment.trim()) return;
+    dispatch(addComment({ taskId: task.id, authorId: user.id, text: comment.trim() }));
+    if (task.assigneeId && task.assigneeId !== user.id) {
+      dispatch(pushNotif({ userId: task.assigneeId, type: "comment", title: "New comment", body: `${user.name} commented on ${task.title}` }));
+    }
+    setComment("");
+  };
+
+  const addSub = () => {
+    if (!newSub.trim()) return;
+    dispatch(addSubtask({ taskId: task.id, title: newSub.trim() }));
+    setNewSub("");
+  };
+
+  const doApprove = () => {
+    dispatch(approveTask({ id: task.id, by: user.id }));
+    if (task.assigneeId) dispatch(pushNotif({ userId: task.assigneeId, type: "task_approved", title: "Task approved", body: `${task.title} was approved by ${user.name}` }));
+  };
+
+  const doReject = () => {
+    if (!rejectNote.trim()) return;
+    dispatch(rejectTask({ id: task.id, by: user.id, note: rejectNote.trim() }));
+    if (task.assigneeId) dispatch(pushNotif({ userId: task.assigneeId, type: "task_rejected", title: "Changes requested", body: `${task.title}: ${rejectNote.trim()}` }));
+    setRejectMode(false); setRejectNote("");
+  };
+
+  return (
+    <Modal open={!!task} onClose={onClose} size="xl"
+      title={`${project?.key || "TASK"}-${task.id.slice(0, 4).toUpperCase()}`}>
+      <div className="grid md:grid-cols-3 gap-6">
+        {/* Main */}
+        <div className="md:col-span-2 space-y-5">
+          <div className="flex items-center gap-2 flex-wrap">
+            <Badge tone={typeTone(task.type)} className="border-transparent">{task.type}</Badge>
+            <Badge tone={priorityTone(task.priority)}>{task.priority}</Badge>
+            <Badge>{task.status}</Badge>
+            {task.points != null && <Badge>{task.points} pts</Badge>}
+          </div>
+
+          <input
+            value={task.title}
+            onChange={(e) => dispatch(updateTask({ id: task.id, title: e.target.value }))}
+            className="w-full bg-transparent text-2xl font-display font-bold outline-none border-b border-transparent focus:border-border pb-1"
+          />
+
+          <div>
+            <div className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1.5">Description</div>
+            <Textarea
+              value={task.description || ""}
+              placeholder="Add a description…"
+              onChange={(e) => dispatch(updateTask({ id: task.id, description: e.target.value }))}
+              rows={5}
+            />
+          </div>
+
+          {/* Subtasks */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Subtasks</div>
+              <span className="text-[11px] text-muted-foreground">{task.subtasks.filter(s => s.done).length}/{task.subtasks.length}</span>
+            </div>
+            <div className="space-y-1.5">
+              {task.subtasks.map(s => (
+                <button key={s.id} onClick={() => dispatch(toggleSubtask({ taskId: task.id, subtaskId: s.id }))}
+                  className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-md hover:bg-foreground/5 text-left">
+                  {s.done ? <CheckSquare size={16} className="text-[color:var(--primary)]" /> : <Square size={16} className="text-muted-foreground" />}
+                  <span className={`text-sm ${s.done ? "line-through text-muted-foreground" : ""}`}>{s.title}</span>
+                </button>
+              ))}
+              <div className="flex gap-2 mt-2">
+                <Input className="h-9 text-sm" placeholder="Add subtask…" value={newSub} onChange={(e) => setNewSub(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && addSub()} />
+                <Button variant="outline" size="sm" onClick={addSub}><Plus size={14} /></Button>
+              </div>
+            </div>
+          </div>
+
+          {/* Comments */}
+          <div>
+            <div className="text-[11px] uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-2">
+              <MessageSquare size={12} /> Comments
+            </div>
+            <div className="space-y-3">
+              {task.comments.map(c => {
+                const author = members.find(m => m.id === c.authorId);
+                return (
+                  <div key={c.id} className="flex gap-3">
+                    <Avatar name={author?.name} color={author?.avatarColor} size={30} />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-xs"><span className="font-semibold">{author?.name || "Unknown"}</span> <span className="text-muted-foreground">{formatRelative(c.at)}</span></div>
+                      <div className="text-sm mt-0.5 whitespace-pre-wrap">{c.text}</div>
+                    </div>
+                  </div>
+                );
+              })}
+              <div className="flex gap-3 pt-1">
+                <Avatar name={user?.name} color={user?.avatarColor} size={30} />
+                <div className="flex-1 flex gap-2">
+                  <Input className="h-10" placeholder="Add a comment…" value={comment}
+                    onChange={(e) => setComment(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && submitComment()} />
+                  <Button size="md" onClick={submitComment}><Send size={14} /></Button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* History */}
+          {task.history.length > 0 && (
+            <div>
+              <div className="text-[11px] uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-2"><History size={12} /> Activity</div>
+              <ul className="space-y-1.5">
+                {task.history.slice().reverse().slice(0, 8).map((h, i) => {
+                  const by = members.find(m => m.id === h.by);
+                  return (
+                    <li key={i} className="text-xs text-muted-foreground flex items-center gap-2">
+                      <span className="w-1 h-1 rounded-full bg-muted-foreground/40" />
+                      <span className="text-foreground/80">{by?.name || "Someone"}</span>
+                      <span>
+                        {h.type === "created" && "created the task"}
+                        {h.type === "status_change" && <>moved <b>{h.from}</b> → <b>{h.to}</b></>}
+                        {h.type === "submitted_for_review" && "submitted for review"}
+                        {h.type === "approved" && "approved this task"}
+                        {h.type === "rejected" && "requested changes"}
+                      </span>
+                      <span className="ml-auto">{formatRelative(h.at)}</span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          )}
+        </div>
+
+        {/* Sidebar */}
+        <div className="space-y-4">
+          <div className="glass-flat p-4 space-y-3">
+            <Field label="Assignee">
+              <Select value={task.assigneeId || ""} onChange={(e) => dispatch(updateTask({ id: task.id, assigneeId: e.target.value || null }))}>
+                <option value="">Unassigned</option>
+                {members.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+              </Select>
+            </Field>
+            <Field label="Priority">
+              <Select value={task.priority} onChange={(e) => dispatch(updateTask({ id: task.id, priority: e.target.value }))}>
+                {PRIORITIES.map(p => <option key={p}>{p}</option>)}
+              </Select>
+            </Field>
+            <Field label="Story points">
+              <Input type="number" value={task.points ?? ""} min={0} onChange={(e) => dispatch(updateTask({ id: task.id, points: e.target.value === "" ? null : Number(e.target.value) }))} />
+            </Field>
+            <Field label="Due date">
+              <Input type="date"
+                value={task.dueDate ? new Date(task.dueDate).toISOString().slice(0,10) : ""}
+                onChange={(e) => dispatch(updateTask({ id: task.id, dueDate: e.target.value ? new Date(e.target.value).getTime() : null }))} />
+            </Field>
+            <Field label="Sprint">
+              <div className="text-sm">{sprint?.name || <span className="text-muted-foreground">Backlog</span>}</div>
+            </Field>
+            <Field label="Reporter">
+              <div className="flex items-center gap-2 text-sm">
+                {reporter && <><Avatar name={reporter.name} color={reporter.avatarColor} size={22} /> <span>{reporter.name}</span></>}
+              </div>
+            </Field>
+          </div>
+
+          <div className="space-y-2">
+            {canPickFromBacklog && (
+              <Button variant="outline" className="w-full" onClick={() => dispatch(moveTask({ id: task.id, status: "Todo", by: user.id }))}>
+                Move to Todo
+              </Button>
+            )}
+            {canStartTodo && (
+              <Button variant="primary" className="w-full" onClick={() => dispatch(moveTask({ id: task.id, status: "In Progress", by: user.id }))}>
+                Move to In Progress
+              </Button>
+            )}
+            {canSubmitForReview && (
+              <Button variant="primary" className="w-full" onClick={() => {
+                dispatch(submitForReview({ id: task.id, by: user.id }));
+                if (reporter) dispatch(pushNotif({ userId: reporter.id, type: "review_request", title: "Review request", body: `${task.title} is ready for review` }));
+              }}>
+                Move to In Review
+              </Button>
+            )}
+            {canReview && !rejectMode && (
+              <div className="grid grid-cols-2 gap-2">
+                <Button variant="primary" onClick={doApprove}><Check size={15} /> Approve</Button>
+                <Button variant="outline" onClick={() => setRejectMode(true)}><X size={15} /> Reject</Button>
+              </div>
+            )}
+            {canReview && rejectMode && (
+              <div className="glass-flat p-3 space-y-2">
+                <div className="flex items-center gap-2 text-xs"><AlertCircle size={13} className="text-orange-500" /> Add feedback before rejecting</div>
+                <Textarea value={rejectNote} onChange={(e) => setRejectNote(e.target.value)} placeholder="What needs to change?" rows={3} />
+                <div className="grid grid-cols-2 gap-2">
+                  <Button variant="ghost" size="sm" onClick={() => { setRejectMode(false); setRejectNote(""); }}>Cancel</Button>
+                  <Button variant="danger" size="sm" onClick={doReject} disabled={!rejectNote.trim()}>Send feedback</Button>
+                </div>
+              </div>
+            )}
+            {task.status === "Done" && canMoveAny && (
+              <Button variant="outline" className="w-full" onClick={() => dispatch(moveTask({ id: task.id, status: "In Progress", by: user.id }))}>
+                Reopen task
+              </Button>
+            )}
+            {canDelete && (
+              <Button variant="ghost" className="w-full text-red-500" onClick={() => { dispatch(deleteTask(task.id)); onClose(); }}>Delete task</Button>
+            )}
+          </div>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+function Field({ label, children }) {
+  return (
+    <div>
+      <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">{label}</div>
+      {children}
+    </div>
+  );
+}

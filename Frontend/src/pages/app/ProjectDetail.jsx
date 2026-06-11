@@ -1,0 +1,222 @@
+import { useParams, Link } from "react-router-dom";
+import { useSelector, useDispatch } from "react-redux";
+import { useState } from "react";
+import { motion } from "framer-motion";
+import { ArrowLeft, Plus, Clock, RotateCcw, Archive } from "lucide-react";
+import { toast } from "sonner";
+import { GlassCard, Badge } from "@/components/common/Primitives";
+import Button from "@/components/common/Button";
+import Avatar from "@/components/common/Avatar";
+import KanbanBoard from "@/components/kanban/KanbanBoard";
+import CreateTaskModal from "@/components/tasks/CreateTaskModal";
+import { roleLabel, roleTone, formatDate, priorityTone, typeTone, formatRelative } from "@/lib/format";
+import { openTask } from "@/store/slices/uiSlice";
+import { unarchiveTask } from "@/store/slices/tasksSlice";
+import { cn } from "@/lib/utils";
+
+export default function ProjectDetail() {
+  const { id } = useParams();
+  const project = useSelector(s => s.projects.projects.find(p => p.id === id));
+  const members = useSelector(s => s.org.members);
+  const sprints = useSelector(s => s.sprints.sprints.filter(s => s.projectId === id));
+  const tasks = useSelector(s => s.tasks.tasks.filter(t => t.projectId === id));
+  const dispatch = useDispatch();
+  const [tab, setTab] = useState("overview");
+  const [createOpen, setCreateOpen] = useState(false);
+  const [createStatus, setCreateStatus] = useState("Backlog");
+
+  if (!project) {
+    return (
+      <div className="py-20 text-center">
+        <p className="text-muted-foreground">Project not found.</p>
+        <Link to="/app/projects" className="mt-4 inline-block"><Button variant="outline"><ArrowLeft size={15} /> Back to projects</Button></Link>
+      </div>
+    );
+  }
+
+  const lead = members.find(m => m.id === project.teamLeadId);
+  const memberObjs = members.filter(m => project.memberIds.includes(m.id));
+  const activeSprint = sprints.find(s => s.status === "active");
+
+  return (
+    <div className="space-y-6">
+      <Link to="/app/projects" className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1"><ArrowLeft size={13}/> Projects</Link>
+      <div className="flex items-end justify-between flex-wrap gap-4">
+        <div>
+          <div className="text-xs tracking-wider font-semibold text-muted-foreground">{project.key}</div>
+          <h1 className="font-display text-3xl font-bold mt-1">{project.name}</h1>
+          <p className="text-sm text-muted-foreground mt-1.5 max-w-xl">{project.description || "No description"}</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => { setCreateStatus("Backlog"); setCreateOpen(true); }}><Plus size={15}/> New task</Button>
+        </div>
+      </div>
+
+      <div className="grid lg:grid-cols-4 gap-3">
+        <Mini label="Tasks" value={tasks.length} />
+        <Mini label="Completed" value={tasks.filter(t => t.status === "Done").length} />
+        <Mini label="Story points" value={tasks.reduce((a, t) => a + (t.points || 0), 0)} />
+        <Mini label="Active sprint" value={activeSprint ? activeSprint.name.split("—")[0]?.trim() : "—"} />
+      </div>
+
+      {/* Tabs */}
+      <div className="flex items-center gap-1 border-b border-border overflow-x-auto">
+        {[
+          { id: "overview", label: "Overview" },
+          { id: "board", label: "Board" },
+          { id: "backlog", label: "Backlog" },
+          { id: "timeline", label: "Timeline" },
+          { id: "history", label: "History" },
+        ].map(t => (
+          <button key={t.id} onClick={() => setTab(t.id)}
+            className={cn("relative px-4 py-2.5 text-sm font-medium whitespace-nowrap", tab === t.id ? "text-foreground" : "text-muted-foreground hover:text-foreground")}>
+            {t.label}
+            {tab === t.id && <motion.span layoutId="proj-tab" className="absolute bottom-0 left-2 right-2 h-[2px] bg-[color:var(--primary)] rounded-full" />}
+          </button>
+        ))}
+      </div>
+
+      {tab === "overview" && (
+        <div className="grid lg:grid-cols-3 gap-5">
+          <div className="lg:col-span-2 space-y-5">
+            <GlassCard>
+              <h3 className="font-display font-semibold mb-3">Team</h3>
+              <div className="space-y-2.5">
+                {memberObjs.map(m => (
+                  <div key={m.id} className="flex items-center gap-3">
+                    <Avatar name={m.name} color={m.avatarColor} />
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium truncate">{m.name}</div>
+                      <div className="text-xs text-muted-foreground truncate">{m.email}</div>
+                    </div>
+                    <Badge tone={roleTone(m.role)} className="ml-auto">{roleLabel(m.role)}</Badge>
+                  </div>
+                ))}
+              </div>
+            </GlassCard>
+            <GlassCard>
+              <h3 className="font-display font-semibold mb-3">Recent tasks</h3>
+              <ul className="space-y-1">
+                {tasks.slice(0, 6).map(t => (
+                  <li key={t.id}>
+                    <button onClick={() => dispatch(openTask(t.id))} className="w-full flex items-center gap-3 px-2 py-2 rounded-md hover:bg-foreground/5 text-left">
+                      <Badge tone={typeTone(t.type)} className="border-transparent">{t.type}</Badge>
+                      <span className="text-sm truncate flex-1">{t.title}</span>
+                      <Badge tone={priorityTone(t.priority)} className="hidden sm:inline-flex">{t.priority}</Badge>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </GlassCard>
+          </div>
+          <div className="space-y-5">
+            <GlassCard>
+              <h3 className="font-display font-semibold mb-3">Project lead</h3>
+              {lead ? (
+                <div className="flex items-center gap-3">
+                  <Avatar name={lead.name} color={lead.avatarColor} size={38} />
+                  <div className="min-w-0">
+                    <div className="text-sm font-semibold truncate">{lead.name}</div>
+                    <div className="text-xs text-muted-foreground truncate">{lead.email}</div>
+                  </div>
+                </div>
+              ) : <p className="text-sm text-muted-foreground">No lead assigned</p>}
+            </GlassCard>
+            <GlassCard>
+              <h3 className="font-display font-semibold mb-3">Active sprint</h3>
+              {activeSprint ? (
+                <div>
+                  <div className="font-medium text-sm">{activeSprint.name}</div>
+                  <p className="text-xs text-muted-foreground mt-1">{activeSprint.goal}</p>
+                  <div className="text-xs text-muted-foreground mt-2">{formatDate(activeSprint.startDate)} → {formatDate(activeSprint.endDate)}</div>
+                </div>
+              ) : <p className="text-sm text-muted-foreground">No active sprint</p>}
+            </GlassCard>
+          </div>
+        </div>
+      )}
+
+      {tab === "board" && (
+        <KanbanBoard projectId={id} onCreateTask={(status) => { setCreateStatus(status); setCreateOpen(true); }} />
+      )}
+
+      {tab === "backlog" && (
+        <GlassCard className="p-0 overflow-hidden">
+          <ul className="divide-y divide-border">
+            {tasks.filter(t => t.status === "Backlog").map(t => (
+              <li key={t.id}>
+                <button onClick={() => dispatch(openTask(t.id))} className="w-full flex items-center gap-3 px-4 py-3 hover:bg-foreground/5 text-left">
+                  <Badge tone={typeTone(t.type)} className="border-transparent">{t.type}</Badge>
+                  <span className="text-sm flex-1 truncate">{t.title}</span>
+                  {t.points != null && <Badge>{t.points} pts</Badge>}
+                  <Badge tone={priorityTone(t.priority)}>{t.priority}</Badge>
+                </button>
+              </li>
+            ))}
+            {tasks.filter(t => t.status === "Backlog").length === 0 && (
+              <li className="py-12 text-center text-sm text-muted-foreground">Backlog is empty.</li>
+            )}
+          </ul>
+        </GlassCard>
+      )}
+
+      {tab === "timeline" && (
+        <GlassCard>
+          <ul className="space-y-3">
+            {tasks.slice().sort((a, b) => (b.history.slice(-1)[0]?.at || 0) - (a.history.slice(-1)[0]?.at || 0)).map(t => (
+              <li key={t.id} className="flex gap-3 items-start">
+                <div className="w-8 h-8 rounded-full bg-foreground/5 flex items-center justify-center shrink-0 mt-0.5">
+                  <Clock size={13} className="text-muted-foreground" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-sm font-medium">{t.title}</div>
+                  <div className="text-xs text-muted-foreground">{t.status} · {formatRelative(t.history.slice(-1)[0]?.at || t.createdAt)}</div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </GlassCard>
+      )}
+
+      {tab === "history" && (
+        <GlassCard className="p-0 overflow-hidden">
+          {tasks.filter(t => t.archived).length === 0 ? (
+            <div className="py-16 text-center text-sm text-muted-foreground flex flex-col items-center gap-2">
+              <Archive size={22} className="text-muted-foreground/60" />
+              No archived tasks yet. Completed tasks you archive will appear here.
+            </div>
+          ) : (
+            <ul className="divide-y divide-border">
+              {tasks.filter(t => t.archived).slice().sort((a, b) => (b.archivedAt || 0) - (a.archivedAt || 0)).map(t => (
+                <li key={t.id} className="flex items-center gap-3 px-4 py-3 hover:bg-foreground/5">
+                  <button onClick={() => dispatch(openTask(t.id))} className="flex items-center gap-3 flex-1 min-w-0 text-left">
+                    <Badge tone={typeTone(t.type)} className="border-transparent">{t.type}</Badge>
+                    <span className="text-sm truncate flex-1">{t.title}</span>
+                    <Badge tone={priorityTone(t.priority)} className="hidden sm:inline-flex">{t.priority}</Badge>
+                    <span className="text-xs text-muted-foreground hidden md:inline">archived {formatRelative(t.archivedAt || 0)}</span>
+                  </button>
+                  <button
+                    onClick={() => { dispatch(unarchiveTask({ id: t.id })); toast.success("Restored to board"); }}
+                    className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-1 rounded-md bg-foreground/5 hover:bg-foreground/10 text-muted-foreground"
+                    title="Restore to board"
+                  >
+                    <RotateCcw size={12} /> Restore
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </GlassCard>
+      )}
+
+      <CreateTaskModal open={createOpen} onClose={() => setCreateOpen(false)} projectId={id} defaultStatus={createStatus} />
+    </div>
+  );
+}
+
+function Mini({ label, value }) {
+  return <GlassCard className="p-4">
+    <div className="text-xs text-muted-foreground">{label}</div>
+    <div className="font-display text-xl font-bold mt-1">{value}</div>
+  </GlassCard>;
+}

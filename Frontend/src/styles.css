@@ -1,0 +1,229 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme inline {
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 18px;
+  --radius-xl: 22px;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  --font-sans: "Inter", system-ui, -apple-system, sans-serif;
+  --font-display: "Plus Jakarta Sans", "Inter", sans-serif;
+}
+
+/* LIGHT THEME */
+:root {
+  --background: #FFF2E1;
+  --foreground: #222222;
+
+  --card: rgba(255, 255, 255, 0.65);
+  --card-foreground: #222222;
+
+  --popover: #ffffff;
+  --popover-foreground: #222222;
+
+  --primary: #A79277;
+  --primary-foreground: #ffffff;
+
+  --secondary: rgba(0, 0, 0, 0.04);
+  --secondary-foreground: #222222;
+
+  --muted: rgba(0, 0, 0, 0.04);
+  --muted-foreground: #666666;
+
+  --accent: rgba(167, 146, 119, 0.12);
+  --accent-foreground: #222222;
+
+  --destructive: #c0392b;
+  --destructive-foreground: #ffffff;
+
+  --border: rgba(0, 0, 0, 0.06);
+  --input: rgba(0, 0, 0, 0.08);
+  --ring: #A79277;
+
+  --sidebar: rgba(255, 255, 255, 0.5);
+  --sidebar-foreground: #222222;
+  --sidebar-border: rgba(0, 0, 0, 0.06);
+  --sidebar-accent: rgba(0, 0, 0, 0.04);
+  --sidebar-accent-foreground: #222222;
+  --sidebar-primary: #A79277;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-ring: #A79277;
+
+  --chart-1: #A79277;
+  --chart-2: #6b5b47;
+  --chart-3: #d1b89a;
+  --chart-4: #8a7a63;
+  --chart-5: #c4a987;
+
+  --radius: 16px;
+
+  --shadow-soft: 0 1px 2px rgba(0,0,0,0.04), 0 8px 24px rgba(0,0,0,0.04);
+  --shadow-card: 0 1px 2px rgba(0,0,0,0.04), 0 12px 32px rgba(0,0,0,0.06);
+  --shadow-lift: 0 2px 4px rgba(0,0,0,0.06), 0 20px 40px rgba(0,0,0,0.08);
+}
+
+/* DARK THEME */
+.dark {
+  --background: #121313;
+  --foreground: #F5F5F5;
+
+  --card: rgba(255, 255, 255, 0.04);
+  --card-foreground: #F5F5F5;
+
+  --popover: #1a1b1b;
+  --popover-foreground: #F5F5F5;
+
+  --primary: #FF6044;
+  --primary-foreground: #ffffff;
+
+  --secondary: rgba(255, 255, 255, 0.06);
+  --secondary-foreground: #F5F5F5;
+
+  --muted: rgba(255, 255, 255, 0.04);
+  --muted-foreground: rgba(245, 245, 245, 0.65);
+
+  --accent: rgba(255, 96, 68, 0.14);
+  --accent-foreground: #F5F5F5;
+
+  --destructive: #e74c3c;
+  --destructive-foreground: #ffffff;
+
+  --border: rgba(255, 255, 255, 0.08);
+  --input: rgba(255, 255, 255, 0.1);
+  --ring: #FF6044;
+
+  --sidebar: rgba(255, 255, 255, 0.02);
+  --sidebar-foreground: #F5F5F5;
+  --sidebar-border: rgba(255, 255, 255, 0.08);
+  --sidebar-accent: rgba(255, 255, 255, 0.06);
+  --sidebar-accent-foreground: #F5F5F5;
+  --sidebar-primary: #FF6044;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-ring: #FF6044;
+
+  --chart-1: #FF6044;
+  --chart-2: #f0a08b;
+  --chart-3: #d14a30;
+  --chart-4: #ffa48f;
+  --chart-5: #b54029;
+
+  --shadow-soft: 0 1px 2px rgba(0,0,0,0.4), 0 8px 24px rgba(0,0,0,0.3);
+  --shadow-card: 0 1px 2px rgba(0,0,0,0.4), 0 12px 32px rgba(0,0,0,0.35);
+  --shadow-lift: 0 2px 4px rgba(0,0,0,0.5), 0 24px 48px rgba(0,0,0,0.45);
+}
+
+@layer base {
+  * { border-color: var(--color-border); }
+  html, body, #root { height: 100%; }
+  html { color-scheme: light; }
+  html.dark { color-scheme: dark; }
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    font-feature-settings: "cv11", "ss01";
+    -webkit-font-smoothing: antialiased;
+    transition: background-color 280ms ease, color 280ms ease;
+    overflow-x: hidden;
+  }
+  h1, h2, h3, h4 { font-family: var(--font-display); letter-spacing: -0.02em; }
+
+  /* Native select dropdown — match theme instead of OS white */
+  select { color-scheme: inherit; }
+  select option,
+  select optgroup {
+    background-color: var(--popover);
+    color: var(--popover-foreground);
+  }
+
+  /* Glass-style select trigger to match navbar dropdowns */
+  .select-glass {
+    background: var(--card);
+    backdrop-filter: blur(14px) saturate(140%);
+    -webkit-backdrop-filter: blur(14px) saturate(140%);
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    background-size: 12px 12px;
+  }
+}
+
+@utility glass {
+  background: var(--card);
+  backdrop-filter: blur(20px) saturate(140%);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  box-shadow: var(--shadow-card);
+}
+
+@utility glass-strong {
+  /* Light theme default — high-opacity surface so menus are always legible */
+  background: rgba(255, 242, 225, 0.92);
+  backdrop-filter: blur(16px) saturate(160%);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 16px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.12), 0 2px 6px rgba(0, 0, 0, 0.06);
+  color: var(--foreground);
+}
+.dark .glass-strong {
+  background: rgba(18, 19, 19, 0.88);
+  backdrop-filter: blur(16px) saturate(160%);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.45);
+}
+
+@utility glass-flat {
+  background: var(--card);
+  backdrop-filter: blur(14px) saturate(140%);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+}
+
+/* Subtle scrollbar */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb {
+  background: color-mix(in oklab, var(--foreground) 12%, transparent);
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in oklab, var(--foreground) 20%, transparent);
+}
+::-webkit-scrollbar-track { background: transparent; }
