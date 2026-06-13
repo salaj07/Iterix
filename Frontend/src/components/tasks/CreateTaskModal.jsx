@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import Modal from "@/components/common/Modal";
 import Button from "@/components/common/Button";
 import { Input, Label, Select, Textarea } from "@/components/common/Primitives";
-import { createTask } from "@/store/slices/tasksSlice";
+import { createTaskAsync } from "@/store/slices/tasksSlice";
 import { push as pushNotif } from "@/store/slices/notificationsSlice";
 import { PRIORITIES, TASK_TYPES, STATUSES } from "@/store/seed";
 
@@ -23,9 +23,22 @@ export default function CreateTaskModal({ open, onClose, projectId, defaultStatu
   const [proj, setProj] = useState(projectId || projects[0]?.id || "");
   const sprintForProj = sprints.find(s => s.projectId === proj && s.status === "active");
 
+  useEffect(() => {
+    if (open) {
+      setStatus(defaultStatus);
+      setType("Task");
+      setTitle("");
+      setDescription("");
+      setPriority("Medium");
+      setPoints(3);
+      setAssigneeId("");
+      setProj(projectId || projects[0]?.id || "");
+    }
+  }, [open, defaultStatus, projectId, projects]);
+
   const submit = () => {
     if (!title.trim() || !proj) return;
-    dispatch(createTask({
+    dispatch(createTaskAsync({
       title: title.trim(), description, type, priority,
       points: Number(points), status,
       projectId: proj, sprintId: sprintForProj?.id || null,

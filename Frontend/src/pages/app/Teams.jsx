@@ -8,23 +8,32 @@ import Button from "@/components/common/Button";
 import Modal from "@/components/common/Modal";
 import Avatar from "@/components/common/Avatar";
 import { roleLabel, roleTone, formatRelative } from "@/lib/format";
-import { inviteMember, acceptInvitation, removeMember, updateMemberRole } from "@/store/slices/orgSlice";
+import { inviteMemberAsync, acceptInvitation } from "@/store/slices/orgSlice";
 import { ROLES } from "@/store/seed";
 
 export default function Teams() {
   const dispatch = useDispatch();
   const members = useSelector(s => s.org.members);
   const invitations = useSelector(s => s.org.invitations);
-  const orgs = useSelector(s => s.org.orgs);
-  const orgId = orgs[0]?.id;
+  const currentWorkspaceId = useSelector(s => s.workspace.currentWorkspaceId);
 
   const [inviteOpen, setInviteOpen] = useState(false);
   const [form, setForm] = useState({ name: "", email: "", role: ROLES.DEVELOPER });
 
-  const send = () => {
-    if (!form.name.trim() || !form.email.trim() || !orgId) return;
-    dispatch(inviteMember({ orgId, name: form.name.trim(), email: form.email.trim(), role: form.role }));
-    toast.success(`Invitation sent to ${form.email}`);
+  const send = async () => {
+    if (!form.name.trim() || !form.email.trim() || !currentWorkspaceId) return;
+    const result = await dispatch(
+      inviteMemberAsync({
+        workspaceId: currentWorkspaceId,
+        email: form.email.trim(),
+        role: form.role,
+      })
+    );
+    if (inviteMemberAsync.fulfilled.match(result)) {
+      toast.success(`Invitation sent to ${form.email}`);
+    } else {
+      toast.error(result.payload?.message || "Failed to send invitation");
+    }
     setForm({ name: "", email: "", role: ROLES.DEVELOPER });
     setInviteOpen(false);
   };

@@ -6,10 +6,14 @@ import { store } from "./store";
 import App from "./App";
 import { Toaster } from "sonner";
 import "./styles.css";
+import { fetchMe } from "./store/slices/authSlice";
 
 // Bootstrap theme before paint
 const savedTheme = localStorage.getItem("Iterix-theme") || "dark";
 if (savedTheme === "dark") document.documentElement.classList.add("dark");
+
+// Re-hydrate auth state from the HTTP-only cookie on every page load
+store.dispatch(fetchMe());
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>

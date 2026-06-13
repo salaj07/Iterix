@@ -10,9 +10,18 @@ const chartColor = "var(--primary)";
 const gridColor = "color-mix(in oklab, currentColor 8%, transparent)";
 
 export default function Reports() {
-  const tasks = useSelector(s => s.tasks.tasks);
+  const currentWorkspaceId = useSelector(s => s.workspace.currentWorkspaceId);
+  const allProjects = useSelector(s => s.projects.projects);
+  const projects = allProjects.filter(p => (p.workspace || p.workspaceId) === currentWorkspaceId);
+  const projectIds = projects.map(p => p.id || p._id);
+
+  const allTasks = useSelector(s => s.tasks.tasks);
+  const tasks = allTasks.filter(t => projectIds.includes(t.projectId));
+
   const members = useSelector(s => s.org.members);
-  const sprints = useSelector(s => s.sprints.sprints);
+
+  const allSprints = useSelector(s => s.sprints.sprints);
+  const sprints = allSprints.filter(s => projectIds.includes(s.projectId));
 
   const velocity = sprints.map((s, i) => ({
     name: `S${i + 1}`,

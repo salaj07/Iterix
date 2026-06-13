@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSelector } from "react-redux";
 import { Plus } from "lucide-react";
 import Button from "@/components/common/Button";
@@ -7,10 +7,40 @@ import KanbanBoard from "@/components/kanban/KanbanBoard";
 import CreateTaskModal from "@/components/tasks/CreateTaskModal";
 
 export default function KanbanPage() {
-  const projects = useSelector(s => s.projects.projects);
-  const [projId, setProjId] = useState(projects[0]?.id || "");
+  const currentWorkspaceId = useSelector(s => s.workspace.currentWorkspaceId);
+  const allProjects = useSelector(s => s.projects.projects);
+  const projects = allProjects.filter(p => (p.workspace || p.workspaceId) === currentWorkspaceId);
+
+  const [projId, setProjId] = useState(() => {
+    return localStorage.getItem(`Iterix-current-project-${currentWorkspaceId}`) || "";
+  });
   const [open, setOpen] = useState(false);
   const [defStatus, setDefStatus] = useState("Backlog");
+
+  // Sync selected project ID when the projects list updates (e.g. after switching workspace or reload)
+  useEffect(() => {
+    if (projects.length > 0) {
+      const saved = localStorage.getItem(`Iterix-current-project-${currentWorkspaceId}`);
+      if (saved && projects.some(p => p.id === saved)) {
+        setProjId(saved);
+      } else if (saved === "") {
+        setProjId("");
+      } else {
+        const defaultId = projects[0]?.id || "";
+        setProjId(defaultId);
+        if (defaultId) {
+          localStorage.setItem(`Iterix-current-project-${currentWorkspaceId}`, defaultId);
+        }
+      }
+    } else {
+      setProjId("");
+    }
+  }, [projects, currentWorkspaceId]);
+
+  const handleProjectChange = (val) => {
+    setProjId(val);
+    localStorage.setItem(`Iterix-current-project-${currentWorkspaceId}`, val);
+  };
 
   return (
     <div className="space-y-6">
@@ -21,12 +51,12 @@ export default function KanbanPage() {
         </div>
         <div className="flex items-center gap-2">
           {projects.length > 1 && (
-            <Select className="w-56" value={projId} onChange={(e) => setProjId(e.target.value)}>
+            <Select className="w-56" value={projId} onChange={(e) => handleProjectChange(e.target.value)}>
               <option value="">All projects</option>
               {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
             </Select>
           )}
-          <Button onClick={() => { setDefStatus("Todo"); setOpen(true); }}><Plus size={15} /> New task</Button>
+          <Button onClick={() => { setDefStatus("Todo"); setOpen(true); }} disabled={projects.length === 0}><Plus size={15} /> New task</Button>
         </div>
       </div>
 

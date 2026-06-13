@@ -1,11 +1,19 @@
 import { Outlet, useLocation } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { AnimatePresence, motion } from "framer-motion";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Sidebar from "./Sidebar";
 import Topbar from "./Topbar";
 import TaskDetailModal from "@/components/tasks/TaskDetailModal";
 import { closeTask } from "@/store/slices/uiSlice";
+
+// Async thunks for data loading
+import { fetchWorkspaces } from "@/store/slices/workspaceSlice";
+import { fetchProjects } from "@/store/slices/projectsSlice";
+import { fetchMembers } from "@/store/slices/orgSlice";
+import { fetchProjectTasks } from "@/store/slices/tasksSlice";
+import { fetchSprints } from "@/store/slices/sprintsSlice";
+import { fetchNotifications } from "@/store/slices/notificationsSlice";
 
 export default function AppShell() {
   const dispatch = useDispatch();
@@ -13,6 +21,37 @@ export default function AppShell() {
   const taskId = useSelector(s => s.ui.taskModalId);
   const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
+
+  const currentWorkspaceId = useSelector(s => s.workspace.currentWorkspaceId);
+  const projects = useSelector(s => s.projects.projects);
+
+  // 1. Fetch workspaces and notifications on mount
+  useEffect(() => {
+    dispatch(fetchWorkspaces());
+    dispatch(fetchNotifications());
+  }, [dispatch]);
+
+  // 2. Fetch projects and workspace members whenever selected workspace changes
+  useEffect(() => {
+    if (currentWorkspaceId) {
+      dispatch(fetchProjects());
+      dispatch(fetchMembers(currentWorkspaceId));
+    }
+  }, [dispatch, currentWorkspaceId]);
+
+  // 3. Fetch project tasks and sprints when the list of projects changes
+  const projectIdsStr = projects.map(p => p.id || p._id).join(",");
+  useEffect(() => {
+    if (projects.length > 0) {
+      projects.forEach(p => {
+        const pid = p.id || p._id;
+        if (pid) {
+          dispatch(fetchProjectTasks(pid));
+          dispatch(fetchSprints(pid));
+        }
+      });
+    }
+  }, [dispatch, projectIdsStr]);
 
   return (
     <div className="min-h-screen flex w-full bg-background text-foreground overflow-hidden">

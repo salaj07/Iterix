@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { motion } from "framer-motion";
 import { Search, Filter, Plus, ArrowRight, Trash2 } from "lucide-react";
@@ -6,7 +6,7 @@ import Button from "@/components/common/Button";
 import { Input, Select, Badge, GlassCard } from "@/components/common/Primitives";
 import Avatar from "@/components/common/Avatar";
 import { openTask } from "@/store/slices/uiSlice";
-import { moveTask, deleteTask, updateTask } from "@/store/slices/tasksSlice";
+import { moveTask, deleteTask, updateTask, moveToSprintAsync, changeTaskStatusAsync } from "@/store/slices/tasksSlice";
 import { priorityTone, typeTone } from "@/lib/format";
 import { PRIORITIES, TASK_TYPES } from "@/store/seed";
 import { can, ACTIONS } from "@/lib/rbac";
@@ -14,9 +14,17 @@ import CreateTaskModal from "@/components/tasks/CreateTaskModal";
 
 export default function Backlog() {
   const dispatch = useDispatch();
-  const tasks = useSelector(s => s.tasks.tasks);
-  const projects = useSelector(s => s.projects.projects);
-  const sprints = useSelector(s => s.sprints.sprints);
+  const currentWorkspaceId = useSelector(s => s.workspace.currentWorkspaceId);
+  const allProjects = useSelector(s => s.projects.projects);
+  const projects = allProjects.filter(p => (p.workspace || p.workspaceId) === currentWorkspaceId);
+  const projectIds = projects.map(p => p.id || p._id);
+
+  const allTasks = useSelector(s => s.tasks.tasks);
+  const tasks = allTasks.filter(t => projectIds.includes(t.projectId));
+
+  const allSprints = useSelector(s => s.sprints.sprints);
+  const sprints = allSprints.filter(s => projectIds.includes(s.projectId));
+
   const members = useSelector(s => s.org.members);
   const user = useSelector(s => s.auth.user);
   const me = members.find(m => m.id === user?.id);
@@ -27,6 +35,11 @@ export default function Backlog() {
   const [type, setType] = useState("");
   const [projId, setProjId] = useState("");
   const [open, setOpen] = useState(false);
+
+  // Sync selected project ID filter when active workspace changes
+  useEffect(() => {
+    setProjId("");
+  }, [currentWorkspaceId]);
 
   const backlog = useMemo(() => tasks.filter(t => {
     if (t.status !== "Backlog") return false;
@@ -42,6 +55,8 @@ export default function Backlog() {
     if (!active) return;
     dispatch(updateTask({ id: t.id, sprintId: active.id }));
     dispatch(moveTask({ id: t.id, status: "Todo", by: user?.id }));
+    dispatch(moveToSprintAsync({ taskId: t.id, sprintId: active.id }));
+    dispatch(changeTaskStatusAsync({ taskId: t.id, status: "Todo" }));
   };
 
   return (

@@ -24,7 +24,22 @@ import NotFound from "@/pages/NotFound";
 
 function ProtectedRoute({ children }) {
   const isAuth = useSelector((s) => s.auth.isAuthenticated);
+  const loading = useSelector((s) => s.auth.loading);
   const loc = useLocation();
+
+  // While fetchMe is in flight (on page refresh), show spinner
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <motion.div
+          animate={{ rotate: 360 }}
+          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+          className="w-8 h-8 border-2 border-[color:var(--primary)] border-t-transparent rounded-full"
+        />
+      </div>
+    );
+  }
+
   if (!isAuth) return <Navigate to="/login" state={{ from: loc }} replace />;
   return children;
 }
