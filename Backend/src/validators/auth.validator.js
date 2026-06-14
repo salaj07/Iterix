@@ -33,7 +33,7 @@ const verifyOTPRules = [
 
 /** POST /api/auth/google */
 const googleLoginRules = [
-  body("idToken")
+  body("token")
     .trim()
     .notEmpty()
     .withMessage("Google ID token is required"),

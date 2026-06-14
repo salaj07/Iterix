@@ -7,6 +7,7 @@ import { z } from "zod";
 import { ArrowRight, Mail, Sparkles, Check, Boxes, Trello, BarChart3 } from "lucide-react";
 import Button from "@/components/common/Button";
 import { Input, Label, GlassCard } from "@/components/common/Primitives";
+import { useGoogleLogin  } from "@react-oauth/google";
 import { sendOtp, googleLoginAsync } from "@/store/slices/authSlice";
 import { fetchWorkspaces } from "@/store/slices/workspaceSlice";
 
@@ -20,7 +21,7 @@ export default function Login() {
   const [err, setErr] = useState("");
   const [hasClientId, setHasClientId] = useState(false);
 
-  const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+  const clientId = null;
 
   useEffect(() => {
     if (!clientId) return;
@@ -86,6 +87,38 @@ export default function Login() {
     }
     setLoading(false);
   };
+
+
+  const googleLogin = useGoogleLogin({
+    onSuccess: async (tokenResponse) => {
+      try {
+        const result = await dispatch(
+          googleLoginAsync(tokenResponse.access_token)
+        );
+
+        if (googleLoginAsync.fulfilled.match(result)) {
+          toast.success("Logged in successfully!");
+
+          const wsResult = await dispatch(fetchWorkspaces());
+          const list = wsResult.payload?.data || [];
+
+          navigate(list.length > 0 ? "/app/dashboard" : "/onboarding");
+        } else {
+          toast.error(result.payload?.message || "Google Sign-In failed");
+        }
+      } catch (err) {
+        toast.error("Login failed");
+      }
+    },
+    onError: () => {
+      toast.error("Google Login Failed");
+    },
+  });
+
+  const handleGoogleSignIn = () => {
+    googleLogin();
+  };
+
 
   const handleMockGoogleSignIn = async () => {
     setLoading(true);
@@ -190,7 +223,7 @@ export default function Login() {
                 variant="outline"
                 size="lg"
                 className="w-full flex items-center justify-center gap-2"
-                onClick={handleMockGoogleSignIn}
+                onClick={handleGoogleSignIn}
                 disabled={loading}
               >
                 <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">

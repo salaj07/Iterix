@@ -8,7 +8,10 @@ const { sendOTPRules, verifyOTPRules, googleLoginRules } = require("../validator
 
 router.post("/send-otp", sendOTPRules, validate, authController.sendOTP);
 router.post("/verify-otp", verifyOTPRules, validate, authController.verifyOTP);
-router.post("/google", googleLoginRules, validate, authController.googleLogin);
+router.post("/google",(req,res,next)=>{
+ console.log(req.body)
+ next()
+}, googleLoginRules, validate, authController.googleLogin);
 
 router.get("/me", protect, authController.getMe);
 router.post("/logout", authController.logout);

@@ -10,6 +10,7 @@ import { createWorkspaceAsync } from "@/store/slices/workspaceSlice";
 import { createProjectAsync } from "@/store/slices/projectsSlice";
 import { createSprintAsync, startSprintAsync } from "@/store/slices/sprintsSlice";
 import { createTaskAsync } from "@/store/slices/tasksSlice";
+import { Navigate } from "react-router-dom";
 
 export default function Onboarding() {
   const dispatch = useDispatch();
@@ -23,8 +24,9 @@ export default function Onboarding() {
   const [loadDemo, setLoadDemo] = useState(true);
   const [creating, setCreating] = useState(false);
 
-  if (!user) { navigate("/login", { replace: true }); return null; }
-
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
   const finish = async () => {
     setCreating(true);
     // Create workspace on backend
@@ -136,7 +138,7 @@ export default function Onboarding() {
 
         <GlassCard strong className="p-8">
           <div className="flex items-center gap-2 mb-5">
-            {[0,1].map(i => (
+            {[0, 1].map(i => (
               <div key={i} className={`h-1 flex-1 rounded-full transition-colors ${step >= i ? "bg-[color:var(--primary)]" : "bg-foreground/10"}`} />
             ))}
           </div>

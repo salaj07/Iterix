@@ -17,18 +17,18 @@ const sendOTP = async (req, res, next) => {
 const verifyOTP = async (req, res, next) => {
   try {
     const result = await authService.verifyOTP(req.body);
-res.cookie("token", result.data.token, {
-  httpOnly: true,
-  secure: process.env.NODE_ENV === "production",
-  sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-});
+    res.cookie("token", result.data.token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    });
 
-return res.status(200).json({
-  success: true,
-  message: "Login successful",
-  user: result.data.user,
-});
+    return res.status(200).json({
+      success: true,
+      message: "Login successful",
+      user: result.data.user,
+    });
 
   } catch (error) {
     next(error);
@@ -37,8 +37,21 @@ return res.status(200).json({
 
 const googleLogin = async (req, res, next) => {
   try {
+    console.log(req.body)
     const result = await authService.googleLogin(req.body);
 
+    res.cookie("token", result.data.token, {
+
+      httpOnly: true,
+
+      secure: process.env.NODE_ENV === "production",
+
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+
+    });
+    
     return res.status(200).json({
       success: true,
       message: result.message,

@@ -65,26 +65,26 @@ const verifyOTP = async ({ email, otp, name }) => {
 
   const isValidOtp = await bcrypt.compare(otp, otpRecord.otp);
 
-if (!isValidOtp) {
-  otpRecord.attempts += 1;
+  if (!isValidOtp) {
+    otpRecord.attempts += 1;
 
-  // Allow maximum 5 attempts
-  if (otpRecord.attempts >= 5) {
-    await Otp.deleteOne({ _id: otpRecord._id });
+    // Allow maximum 5 attempts
+    if (otpRecord.attempts >= 5) {
+      await Otp.deleteOne({ _id: otpRecord._id });
+      throw new Error(
+        "Maximum OTP attempts exceeded. Please request a new OTP."
+      );
+    }
+
+    await otpRecord.save();
+
     throw new Error(
-      "Maximum OTP attempts exceeded. Please request a new OTP."
+      `Invalid OTP. ${5 - otpRecord.attempts} attempt(s) remaining.`
     );
   }
 
-  await otpRecord.save();
-
-  throw new Error(
-    `Invalid OTP. ${5 - otpRecord.attempts} attempt(s) remaining.`
-  );
-}
-
-// Correct OTP -> delete immediately
-await Otp.deleteOne({ _id: otpRecord._id });
+  // Correct OTP -> delete immediately
+  await Otp.deleteOne({ _id: otpRecord._id });
 
   // Find or create user
 
@@ -98,8 +98,8 @@ await Otp.deleteOne({ _id: otpRecord._id });
       provider: "email",
     });
   }
-    user.lastLogin = new Date();
-await user.save();
+  user.lastLogin = new Date();
+  await user.save();
 
   // Generate JWT
   const token = jwt.sign(
@@ -138,19 +138,28 @@ const googleLogin = async ({ token }) => {
     if (!process.env.GOOGLE_CLIENT_ID) {
       throw new Error("Google Client ID is not configured on the server");
     }
-    const ticket = await client.verifyIdToken({
-      idToken: token,
-      audience: process.env.GOOGLE_CLIENT_ID,
-    });
+    // const ticket = await client.verifyIdToken({
+    //   idToken: token,
+    //   audience: process.env.GOOGLE_CLIENT_ID,
+    // });
 
-    const payload = ticket.getPayload();
+    const response = await fetch(
+      "https://www.googleapis.com/oauth2/v3/userinfo",
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
 
-    if (!payload || !payload.email) {
+    const responseData = await response.json();
+    console.log(responseData)
+    if (!responseData || !responseData.email || !responseData.name) {
       throw new Error("Invalid Google token");
     }
 
-    email = payload.email;
-    name = payload.name;
+    email = responseData.email;
+    name = responseData.name;
   }
 
   let user = await User.findOne({ email });
