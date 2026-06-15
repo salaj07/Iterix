@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { motion } from "framer-motion";
 import { MessageSquare, CheckSquare, Calendar, Plus, Archive } from "lucide-react";
 import { toast } from "sonner";
-import { moveTask, archiveTask } from "@/store/slices/tasksSlice";
+import { moveTask, archiveTask, changeTaskStatusAsync, updateTaskDetailsAsync } from "@/store/slices/tasksSlice";
 import { openTask } from "@/store/slices/uiSlice";
 import { push as pushNotif } from "@/store/slices/notificationsSlice";
 import { KANBAN_STATUSES as STATUSES } from "@/store/seed";
@@ -29,6 +29,7 @@ export default function KanbanBoard({ projectId = null, onCreateTask }) {
     const newStatus = destination.droppableId;
     const oldStatus = source.droppableId;
     dispatch(moveTask({ id: draggableId, status: newStatus, by: user?.id }));
+    dispatch(changeTaskStatusAsync({ taskId: draggableId, status: newStatus }));
 
     if (newStatus === "In Review" && oldStatus !== "In Review") {
       const task = tasks.find(t => t.id === draggableId);
@@ -57,6 +58,7 @@ export default function KanbanBoard({ projectId = null, onCreateTask }) {
   const onArchive = (e, taskId, title) => {
     e.stopPropagation();
     dispatch(archiveTask({ id: taskId, by: user?.id }));
+    dispatch(updateTaskDetailsAsync({ taskId, data: { archived: true } }));
     toast.success("Moved to project history", { description: title });
   };
 
@@ -106,17 +108,14 @@ function Column({ status, tasks, members, onCardClick, onAddTask, onArchive }) {
             {tasks.map((task, idx) => (
               <Draggable key={task.id} draggableId={task.id} index={idx}>
                 {(prov, snap) => (
-                  <motion.div
+                  <div
                     ref={prov.innerRef}
                     {...prov.draggableProps} {...prov.dragHandleProps}
-                    layout
                     onClick={() => onCardClick(task.id)}
-                    whileHover={{ y: -2 }}
-                    transition={{ type: "spring", stiffness: 360, damping: 28 }}
                     className={cn(
                       "group cursor-pointer rounded-[14px] p-3 bg-card border border-border",
-                      "backdrop-blur-md transition-shadow",
-                      snap.isDragging ? "shadow-[0_20px_40px_rgba(0,0,0,0.2)] rotate-1" : "hover:shadow-[0_8px_24px_rgba(0,0,0,0.08)]"
+                      "backdrop-blur-md transition-all duration-200 ease-out",
+                      snap.isDragging ? "shadow-[0_20px_40px_rgba(0,0,0,0.2)] rotate-1 scale-[1.02]" : "hover:shadow-[0_8px_24px_rgba(0,0,0,0.08)] hover:-translate-y-0.5"
                     )}
                     style={prov.draggableProps.style}
                     >
@@ -130,7 +129,7 @@ function Column({ status, tasks, members, onCardClick, onAddTask, onArchive }) {
                         <Archive size={12} /> Move to history
                       </button>
                     )}
-                  </motion.div>
+                  </div>
                 )}
               </Draggable>
             ))}

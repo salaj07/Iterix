@@ -1,5 +1,6 @@
 import { useDispatch, useSelector } from "react-redux";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { MessageSquare, Send, History, Check, X, AlertCircle, Plus, Square, CheckSquare, Calendar, User } from "lucide-react";
 import Modal from "@/components/common/Modal";
@@ -10,6 +11,8 @@ import { priorityTone, typeTone, formatRelative, formatDate } from "@/lib/format
 import {
   updateTask, addComment, addSubtask, toggleSubtask, moveTask,
   submitForReview, approveTask, rejectTask, deleteTask,
+  changeTaskStatusAsync, assignTaskAsync, approveTaskAsync, requestChangesAsync,
+  updateTaskDetailsAsync,
 } from "@/store/slices/tasksSlice";
 import { push as pushNotif } from "@/store/slices/notificationsSlice";
 import { PRIORITIES, ROLES } from "@/store/seed";
@@ -27,6 +30,27 @@ export default function TaskDetailModal({ taskId, onClose }) {
   const [newSub, setNewSub] = useState("");
   const [rejectMode, setRejectMode] = useState(false);
   const [rejectNote, setRejectNote] = useState("");
+  const [edited, setEdited] = useState({});
+
+  useEffect(() => {
+    setEdited({});
+  }, [taskId]);
+
+  const hasChanges = Object.keys(edited).length > 0;
+
+  const handleUpdate = async () => {
+    if (edited.title !== undefined && !edited.title.trim()) {
+      toast.error("Title cannot be empty");
+      return;
+    }
+    const result = await dispatch(updateTaskDetailsAsync({ taskId: task.id, data: edited }));
+    if (updateTaskDetailsAsync.fulfilled.match(result)) {
+      toast.success("Task updated successfully");
+      setEdited({});
+    } else {
+      toast.error(result.payload?.message || "Failed to update task");
+    }
+  };
 
   if (!task) return <Modal open={false} onClose={onClose} />;
 
@@ -61,12 +85,14 @@ export default function TaskDetailModal({ taskId, onClose }) {
 
   const doApprove = () => {
     dispatch(approveTask({ id: task.id, by: user.id }));
+    dispatch(approveTaskAsync(task.id));
     if (task.assigneeId) dispatch(pushNotif({ userId: task.assigneeId, type: "task_approved", title: "Task approved", body: `${task.title} was approved by ${user.name}` }));
   };
 
   const doReject = () => {
     if (!rejectNote.trim()) return;
     dispatch(rejectTask({ id: task.id, by: user.id, note: rejectNote.trim() }));
+    dispatch(requestChangesAsync({ taskId: task.id, note: rejectNote.trim() }));
     if (task.assigneeId) dispatch(pushNotif({ userId: task.assigneeId, type: "task_rejected", title: "Changes requested", body: `${task.title}: ${rejectNote.trim()}` }));
     setRejectMode(false); setRejectNote("");
   };
@@ -85,17 +111,17 @@ export default function TaskDetailModal({ taskId, onClose }) {
           </div>
 
           <input
-            value={task.title}
-            onChange={(e) => dispatch(updateTask({ id: task.id, title: e.target.value }))}
+            value={edited.title !== undefined ? edited.title : task.title}
+            onChange={(e) => setEdited(prev => ({ ...prev, title: e.target.value }))}
             className="w-full bg-transparent text-2xl font-display font-bold outline-none border-b border-transparent focus:border-border pb-1"
           />
 
           <div>
             <div className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1.5">Description</div>
             <Textarea
-              value={task.description || ""}
+              value={edited.description !== undefined ? edited.description : (task.description || "")}
               placeholder="Add a description…"
-              onChange={(e) => dispatch(updateTask({ id: task.id, description: e.target.value }))}
+              onChange={(e) => setEdited(prev => ({ ...prev, description: e.target.value }))}
               rows={5}
             />
           </div>
@@ -183,23 +209,36 @@ export default function TaskDetailModal({ taskId, onClose }) {
         <div className="space-y-4">
           <div className="glass-flat p-4 space-y-3">
             <Field label="Assignee">
-              <Select value={task.assigneeId || ""} onChange={(e) => dispatch(updateTask({ id: task.id, assigneeId: e.target.value || null }))}>
+              <Select value={edited.assigneeId !== undefined ? (edited.assigneeId || "") : (task.assigneeId || "")} onChange={(e) => {
+                const val = e.target.value || null;
+                setEdited(prev => ({ ...prev, assigneeId: val }));
+              }}>
                 <option value="">Unassigned</option>
                 {members.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
               </Select>
             </Field>
             <Field label="Priority">
-              <Select value={task.priority} onChange={(e) => dispatch(updateTask({ id: task.id, priority: e.target.value }))}>
+              <Select value={edited.priority !== undefined ? edited.priority : task.priority} onChange={(e) => {
+                setEdited(prev => ({ ...prev, priority: e.target.value }));
+              }}>
                 {PRIORITIES.map(p => <option key={p}>{p}</option>)}
               </Select>
             </Field>
             <Field label="Story points">
-              <Input type="number" value={task.points ?? ""} min={0} onChange={(e) => dispatch(updateTask({ id: task.id, points: e.target.value === "" ? null : Number(e.target.value) }))} />
+              <Input type="number" value={edited.points !== undefined ? (edited.points ?? "") : (task.points ?? "")} min={0} onChange={(e) => {
+                const val = e.target.value === "" ? null : Number(e.target.value);
+                setEdited(prev => ({ ...prev, points: val }));
+              }} />
             </Field>
             <Field label="Due date">
               <Input type="date"
-                value={task.dueDate ? new Date(task.dueDate).toISOString().slice(0,10) : ""}
-                onChange={(e) => dispatch(updateTask({ id: task.id, dueDate: e.target.value ? new Date(e.target.value).getTime() : null }))} />
+                value={edited.dueDate !== undefined 
+                  ? (edited.dueDate ? new Date(edited.dueDate).toISOString().slice(0,10) : "") 
+                  : (task.dueDate ? new Date(task.dueDate).toISOString().slice(0,10) : "")}
+                onChange={(e) => {
+                  const val = e.target.value ? new Date(e.target.value).getTime() : null;
+                  setEdited(prev => ({ ...prev, dueDate: val }));
+                }} />
             </Field>
             <Field label="Sprint">
               <div className="text-sm">{sprint?.name || <span className="text-muted-foreground">Backlog</span>}</div>
@@ -211,20 +250,33 @@ export default function TaskDetailModal({ taskId, onClose }) {
             </Field>
           </div>
 
+          {hasChanges && (
+            <Button variant="primary" className="w-full flex items-center justify-center gap-1.5" onClick={handleUpdate}>
+              Update task
+            </Button>
+          )}
+
           <div className="space-y-2">
             {canPickFromBacklog && (
-              <Button variant="outline" className="w-full" onClick={() => dispatch(moveTask({ id: task.id, status: "Todo", by: user.id }))}>
+              <Button variant="outline" className="w-full" onClick={() => {
+                dispatch(moveTask({ id: task.id, status: "Todo", by: user.id }));
+                dispatch(changeTaskStatusAsync({ taskId: task.id, status: "Todo" }));
+              }}>
                 Move to Todo
               </Button>
             )}
             {canStartTodo && (
-              <Button variant="primary" className="w-full" onClick={() => dispatch(moveTask({ id: task.id, status: "In Progress", by: user.id }))}>
+              <Button variant="primary" className="w-full" onClick={() => {
+                dispatch(moveTask({ id: task.id, status: "In Progress", by: user.id }));
+                dispatch(changeTaskStatusAsync({ taskId: task.id, status: "In Progress" }));
+              }}>
                 Move to In Progress
               </Button>
             )}
             {canSubmitForReview && (
               <Button variant="primary" className="w-full" onClick={() => {
                 dispatch(submitForReview({ id: task.id, by: user.id }));
+                dispatch(changeTaskStatusAsync({ taskId: task.id, status: "In Review" }));
                 if (reporter) dispatch(pushNotif({ userId: reporter.id, type: "review_request", title: "Review request", body: `${task.title} is ready for review` }));
               }}>
                 Move to In Review
@@ -247,7 +299,10 @@ export default function TaskDetailModal({ taskId, onClose }) {
               </div>
             )}
             {task.status === "Done" && canMoveAny && (
-              <Button variant="outline" className="w-full" onClick={() => dispatch(moveTask({ id: task.id, status: "In Progress", by: user.id }))}>
+              <Button variant="outline" className="w-full" onClick={() => {
+                dispatch(moveTask({ id: task.id, status: "In Progress", by: user.id }));
+                dispatch(changeTaskStatusAsync({ taskId: task.id, status: "In Progress" }));
+              }}>
                 Reopen task
               </Button>
             )}

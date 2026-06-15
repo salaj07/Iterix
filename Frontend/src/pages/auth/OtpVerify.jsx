@@ -3,21 +3,20 @@ import { useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
-import { ArrowLeft, Check, Mail, Sparkles } from "lucide-react";
+import { ArrowLeft, Check, Mail } from "lucide-react";
 import Button from "@/components/common/Button";
 import { GlassCard } from "@/components/common/Primitives";
-import { clearOtp, loginSuccess, issueOtp } from "@/store/slices/authSlice";
-import { uid } from "@/lib/uid";
+import { verifyOtp, sendOtp } from "@/store/slices/authSlice";
+import { fetchWorkspaces } from "@/store/slices/workspaceSlice";
 
 export default function OtpVerify() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const { pendingEmail, pendingOtp, otpIssuedAt } = useSelector(s => s.auth);
+  const { pendingEmail, loading } = useSelector((s) => s.auth);
   const [digits, setDigits] = useState(["","","","","",""]);
   const [err, setErr] = useState("");
-  const [verifying, setVerifying] = useState(false);
   const [success, setSuccess] = useState(false);
-  const [secondsLeft, setSecondsLeft] = useState(30);
+  const [secondsLeft, setSecondsLeft] = useState(60);
   const inputs = useRef([]);
 
   useEffect(() => {
@@ -29,9 +28,10 @@ export default function OtpVerify() {
   }, []);
 
   useEffect(() => {
-    const t = setInterval(() => setSecondsLeft(s => Math.max(0, s - 1)), 1000);
-    return () => clearInterval(t);
-  }, [otpIssuedAt]);
+    if (secondsLeft <= 0) return;
+    const t = setTimeout(() => setSecondsLeft((s) => s - 1), 1000);
+    return () => clearTimeout(t);
+  }, [secondsLeft]);
 
   const setDigit = (i, v) => {
     if (!/^\d?$/.test(v)) return;
@@ -62,33 +62,43 @@ export default function OtpVerify() {
   const verify = async (code) => {
     if (code.length !== 6) return setErr("Please enter all 6 digits");
     setErr("");
-    setVerifying(true);
-    await new Promise(r => setTimeout(r, 600));
-    if (code !== pendingOtp) {
-      setErr("That code doesn't match. Try again.");
-      setVerifying(false);
-      return;
+
+    const result = await dispatch(verifyOtp({ email: pendingEmail, otp: code }));
+
+    if (verifyOtp.fulfilled.match(result)) {
+      setSuccess(true);
+      const wsResult = await dispatch(fetchWorkspaces());
+      let hasWorkspaces = false;
+      if (fetchWorkspaces.fulfilled.match(wsResult)) {
+        const list = wsResult.payload?.data || [];
+        if (list.length > 0) {
+          hasWorkspaces = true;
+        }
+      }
+      await new Promise((r) => setTimeout(r, 900));
+      if (hasWorkspaces) {
+        navigate("/app/dashboard");
+      } else {
+        navigate("/onboarding");
+      }
+    } else {
+      const msg = result.payload?.message || "Invalid code. Please try again.";
+      setErr(msg);
+      toast.error(msg);
     }
-    setSuccess(true);
-    await new Promise(r => setTimeout(r, 900));
-    dispatch(loginSuccess({
-      id: uid(),
-      name: pendingEmail.split("@")[0].replace(/\.|_/g, " ").replace(/\b\w/g, c => c.toUpperCase()),
-      email: pendingEmail,
-      avatarColor: "#FF6044",
-    }));
-    dispatch(clearOtp());
-    navigate("/app/dashboard");
   };
 
-  const resend = () => {
+  const resend = async () => {
     if (secondsLeft > 0) return;
-    const otp = String(Math.floor(100000 + Math.random() * 900000));
-    dispatch(issueOtp({ email: pendingEmail, otp }));
-    toast.success(`New code: ${otp}`, { duration: 8000 });
-    setSecondsLeft(30);
-    setDigits(["","","","","",""]);
-    inputs.current[0]?.focus();
+    const result = await dispatch(sendOtp(pendingEmail));
+    if (sendOtp.fulfilled.match(result)) {
+      toast.success("New code sent!");
+      setSecondsLeft(60);
+      setDigits(["","","","","",""]);
+      inputs.current[0]?.focus();
+    } else {
+      toast.error("Failed to resend. Try again.");
+    }
   };
 
   return (
@@ -132,7 +142,7 @@ export default function OtpVerify() {
                 <div className="mt-7 flex gap-2 sm:gap-3 justify-between" onPaste={onPaste}>
                   {digits.map((d, i) => (
                     <input
-                      key={i} ref={el => inputs.current[i] = el}
+                      key={i} ref={(el) => (inputs.current[i] = el)}
                       inputMode="numeric" maxLength={1}
                       value={d}
                       onChange={(e) => setDigit(i, e.target.value)}
@@ -143,8 +153,8 @@ export default function OtpVerify() {
                 </div>
                 {err && <p className="text-xs text-red-500 mt-3">{err}</p>}
 
-                <Button size="lg" className="w-full mt-6" onClick={() => verify(digits.join(""))} disabled={verifying}>
-                  {verifying ? "Verifying…" : "Verify and continue"}
+                <Button size="lg" className="w-full mt-6" onClick={() => verify(digits.join(""))} disabled={loading}>
+                  {loading ? "Verifying…" : "Verify and continue"}
                 </Button>
 
                 <div className="mt-5 text-center text-xs text-muted-foreground">

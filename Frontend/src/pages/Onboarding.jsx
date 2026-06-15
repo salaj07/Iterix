@@ -3,16 +3,14 @@ import { useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
-import { Sparkles, ArrowRight, Check } from "lucide-react";
+import { Sparkles, ArrowRight, Check, Loader2 } from "lucide-react";
 import Button from "@/components/common/Button";
 import { Input, Label, Select, GlassCard, Textarea } from "@/components/common/Primitives";
-import { createWorkspace } from "@/store/slices/workspaceSlice";
-import { createOrg, seedOrg, ROLES } from "@/store/slices/orgSlice";
-import { seedProject } from "@/store/slices/projectsSlice";
-import { seedSprint } from "@/store/slices/sprintsSlice";
-import { seedTasks } from "@/store/slices/tasksSlice";
-import { createSeed } from "@/store/seed";
-import { uid } from "@/lib/uid";
+import { createWorkspaceAsync } from "@/store/slices/workspaceSlice";
+import { createProjectAsync } from "@/store/slices/projectsSlice";
+import { createSprintAsync, startSprintAsync } from "@/store/slices/sprintsSlice";
+import { createTaskAsync } from "@/store/slices/tasksSlice";
+import { Navigate } from "react-router-dom";
 
 export default function Onboarding() {
   const dispatch = useDispatch();
@@ -24,34 +22,105 @@ export default function Onboarding() {
   const [description, setDescription] = useState("");
   const [teamSize, setTeamSize] = useState("1-10");
   const [loadDemo, setLoadDemo] = useState(true);
+  const [creating, setCreating] = useState(false);
 
-  if (!user) { navigate("/login", { replace: true }); return null; }
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+  const finish = async () => {
+    setCreating(true);
+    // Create workspace on backend
+    const wsResult = await dispatch(
+      createWorkspaceAsync({
+        name: wsName || `${user.name}'s Workspace`,
+        description,
+      })
+    );
 
-  const finish = () => {
-    const wsId = uid();
-    dispatch(createWorkspace({ id: wsId, name: wsName || `${user.name}'s Workspace`, ownerId: user.id }));
+    if (createWorkspaceAsync.fulfilled.match(wsResult)) {
+      const createdWorkspace = wsResult.payload.data;
+      const wsId = createdWorkspace._id || createdWorkspace.id;
 
-    if (loadDemo) {
-      const seed = createSeed(user);
-      const orgWithWs = { ...seed.org, workspaceId: wsId, name: orgName || seed.org.name, description: description || seed.org.description, teamSize };
-      dispatch(seedOrg({ org: orgWithWs, members: seed.members }));
-      dispatch(seedProject(seed.project));
-      dispatch(seedSprint(seed.sprint));
-      dispatch(seedTasks(seed.tasks));
+      if (loadDemo) {
+        // Create initial project on backend
+        const projResult = await dispatch(
+          createProjectAsync({
+            name: orgName || "Atlas Web Platform",
+            key: "ATL",
+            description: "Customer-facing dashboard rebuild.",
+            workspaceId: wsId,
+          })
+        );
+
+        if (createProjectAsync.fulfilled.match(projResult)) {
+          const createdProject = projResult.payload.data;
+          const projId = createdProject._id || createdProject.id;
+
+          // Create a demo sprint
+          const sprintResult = await dispatch(
+            createSprintAsync({
+              projectId: projId,
+              name: "Sprint 14 — Polish week",
+              goal: "Smooth out the rough edges before launch.",
+              startDate: new Date(Date.now() - 5 * 86400000).toISOString(),
+              endDate: new Date(Date.now() + 9 * 86400000).toISOString(),
+            })
+          );
+
+          if (createSprintAsync.fulfilled.match(sprintResult)) {
+            const createdSprint = sprintResult.payload.data;
+            const sprintId = createdSprint._id || createdSprint.id;
+
+            // Start the sprint
+            await dispatch(startSprintAsync(sprintId));
+
+            // Create demo tasks
+            const demoTasks = [
+              {
+                title: "Design onboarding empty states",
+                description: "Cover the 'no workspace yet' and 'no projects yet' screens with illustrations and CTAs.",
+                type: "Story", priority: "High", points: 5,
+                status: "Todo", projectId: projId, sprintId
+              },
+              {
+                title: "Kanban drag-and-drop polish",
+                description: "Smooth column-to-column drag with layout animations.",
+                type: "Task", priority: "Medium", points: 3,
+                status: "In Progress", projectId: projId, sprintId
+              },
+              {
+                title: "Sprint velocity chart shows stale data",
+                description: "When a sprint completes, the chart still references the previous range.",
+                type: "Bug", priority: "Urgent", points: 2,
+                status: "In Review", projectId: projId, sprintId
+              },
+              {
+                title: "Integrate notifications center",
+                description: "Bell icon, unread badge, filterable list.",
+                type: "Story", priority: "Medium", points: 5,
+                status: "Backlog", projectId: projId, sprintId: null
+              },
+              {
+                title: "Sign-in OTP keyboard navigation",
+                description: "Auto-focus next box and support paste of 6-digit codes.",
+                type: "Task", priority: "Low", points: 2,
+                status: "Done", projectId: projId, sprintId
+              }
+            ];
+
+            for (const t of demoTasks) {
+              await dispatch(createTaskAsync(t));
+            }
+          }
+        }
+      }
+
+      toast.success("Workspace ready");
+      navigate("/app/dashboard");
     } else {
-      dispatch(createOrg({
-        workspaceId: wsId,
-        name: orgName || "My Organization",
-        description, teamSize, ownerId: user.id, logo: null,
-      }));
-      // creator becomes admin member
-      const me = { id: uid(), name: user.name, email: user.email, avatarColor: user.avatarColor, role: ROLES.ADMIN };
-      // we used createOrg so org id is auto-generated — find latest:
-      // simpler: dispatch seedOrg with a fresh org so members tie cleanly:
+      toast.error(wsResult.payload?.message || "Failed to create workspace");
     }
-
-    toast.success("Workspace ready");
-    navigate("/app/dashboard");
+    setCreating(false);
   };
 
   return (
@@ -69,7 +138,7 @@ export default function Onboarding() {
 
         <GlassCard strong className="p-8">
           <div className="flex items-center gap-2 mb-5">
-            {[0,1].map(i => (
+            {[0, 1].map(i => (
               <div key={i} className={`h-1 flex-1 rounded-full transition-colors ${step >= i ? "bg-[color:var(--primary)]" : "bg-foreground/10"}`} />
             ))}
           </div>
@@ -117,8 +186,11 @@ export default function Onboarding() {
                 </label>
               </div>
               <div className="mt-8 flex justify-between">
-                <Button variant="ghost" onClick={() => setStep(0)}>Back</Button>
-                <Button onClick={finish}><Check size={16} /> Create workspace</Button>
+                <Button variant="ghost" onClick={() => setStep(0)} disabled={creating}>Back</Button>
+                <Button onClick={finish} disabled={creating}>
+                  {creating ? <Loader2 className="animate-spin" size={16} /> : <Check size={16} />}
+                  {creating ? "Creating workspace..." : "Create workspace"}
+                </Button>
               </div>
             </div>
           )}

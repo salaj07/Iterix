@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { useSelector } from "react-redux";
+import { GoogleOAuthProvider } from '@react-oauth/google';
 
 import Landing from "@/pages/Landing";
 import Login from "@/pages/auth/Login";
@@ -24,7 +25,22 @@ import NotFound from "@/pages/NotFound";
 
 function ProtectedRoute({ children }) {
   const isAuth = useSelector((s) => s.auth.isAuthenticated);
+  const loading = useSelector((s) => s.auth.loading);
   const loc = useLocation();
+
+  // While fetchMe is in flight (on page refresh), show spinner
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <motion.div
+          animate={{ rotate: 360 }}
+          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+          className="w-8 h-8 border-2 border-[color:var(--primary)] border-t-transparent rounded-full"
+        />
+      </div>
+    );
+  }
+
   if (!isAuth) return <Navigate to="/login" state={{ from: loc }} replace />;
   return children;
 }
@@ -46,32 +62,35 @@ function PageTransition({ children }) {
 export default function App() {
   const location = useLocation();
   return (
-    <AnimatePresence mode="wait">
-      <Routes location={location} key={location.pathname}>
-        <Route path="/" element={<PageTransition><Landing /></PageTransition>} />
-        <Route path="/login" element={<PageTransition><Login /></PageTransition>} />
-        <Route path="/login/otp" element={<PageTransition><OtpVerify /></PageTransition>} />
-        <Route path="/onboarding" element={<PageTransition><Onboarding /></PageTransition>} />
+    <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID || "dummy-client-id"}>
+      <AnimatePresence mode="wait">
+        <Routes location={location} key={location.pathname}>
+          <Route path="/" element={<PageTransition><Landing /></PageTransition>} />
+          <Route path="/login" element={<PageTransition><Login /></PageTransition>} />
+          <Route path="/login/otp" element={<PageTransition><OtpVerify /></PageTransition>} />
+          <Route path="/onboarding" element={<PageTransition><Onboarding /></PageTransition>} />
 
-        <Route path="/app" element={<ProtectedRoute><AppShell /></ProtectedRoute>}>
-          <Route index element={<Navigate to="/app/dashboard" replace />} />
-          <Route path="dashboard" element={<Dashboard />} />
-          <Route path="workspaces" element={<Workspaces />} />
-          <Route path="projects" element={<Projects />} />
-          <Route path="projects/:id" element={<ProjectDetail />} />
-          <Route path="projects/:id/board" element={<KanbanPage />} />
-          <Route path="teams" element={<Teams />} />
-          <Route path="sprints" element={<Sprints />} />
-          <Route path="kanban" element={<KanbanPage />} />
-          <Route path="backlog" element={<Backlog />} />
-          <Route path="reports" element={<Reports />} />
-          <Route path="notifications" element={<Notifications />} />
-          <Route path="inbox" element={<Inbox />} />
-          <Route path="settings" element={<Settings />} />
-        </Route>
+          <Route path="/app" element={<ProtectedRoute><AppShell /></ProtectedRoute>}>
+            <Route index element={<Navigate to="/app/dashboard" replace />} />
+            <Route path="dashboard" element={<Dashboard />} />
+            <Route path="workspaces" element={<Workspaces />} />
+            <Route path="projects" element={<Projects />} />
+            <Route path="projects/:id" element={<ProjectDetail />} />
+            <Route path="projects/:id/board" element={<KanbanPage />} />
+            <Route path="teams" element={<Teams />} />
+            <Route path="sprints" element={<Sprints />} />
+            <Route path="kanban" element={<KanbanPage />} />
+            <Route path="backlog" element={<Backlog />} />
+            <Route path="reports" element={<Reports />} />
+            <Route path="notifications" element={<Notifications />} />
+            <Route path="inbox" element={<Inbox />} />
+            <Route path="settings" element={<Settings />} />
+          </Route>
 
-        <Route path="*" element={<NotFound />} />
-      </Routes>
-    </AnimatePresence>
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </AnimatePresence>
+    </GoogleOAuthProvider>
+
   );
 }

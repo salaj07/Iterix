@@ -17,9 +17,17 @@ export default function Dashboard() {
   const user = useSelector(s => s.auth.user);
   const members = useSelector(s => s.org.members);
   const me = members.find(m => m.id === user?.id) || { ...user, role: ROLES.ADMIN };
-  const projects = useSelector(s => s.projects.projects);
-  const sprints = useSelector(s => s.sprints.sprints);
-  const tasks = useSelector(s => s.tasks.tasks);
+  const currentWorkspaceId = useSelector(s => s.workspace.currentWorkspaceId);
+  const allProjects = useSelector(s => s.projects.projects);
+  const projects = allProjects.filter(p => (p.workspace || p.workspaceId) === currentWorkspaceId);
+  const projectIds = projects.map(p => p.id || p._id);
+
+  const allSprints = useSelector(s => s.sprints.sprints);
+  const sprints = allSprints.filter(s => projectIds.includes(s.projectId));
+
+  const allTasks = useSelector(s => s.tasks.tasks);
+  const tasks = allTasks.filter(t => projectIds.includes(t.projectId));
+
   const workspaces = useSelector(s => s.workspace.workspaces);
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -97,7 +105,7 @@ export default function Dashboard() {
               <div className="grid sm:grid-cols-2 gap-3">
                 {projects.slice(0, 4).map(p => {
                   const lead = members.find(m => m.id === p.teamLeadId);
-                  const memberObjs = members.filter(m => p.memberIds.includes(m.id));
+                  const memberObjs = members.filter(m => p.memberIds?.includes(m.id));
                   const projTasks = tasks.filter(t => t.projectId === p.id);
                   const done = projTasks.filter(t => t.status === "Done").length;
                   const pct = projTasks.length ? Math.round((done / projTasks.length) * 100) : 0;

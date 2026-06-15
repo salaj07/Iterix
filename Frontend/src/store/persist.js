@@ -5,7 +5,16 @@ export const loadState = () => {
   try {
     const raw = localStorage.getItem(KEY);
     if (!raw) return undefined;
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    if (parsed && parsed.workspace) {
+      parsed.workspace = {
+        workspaces: [],
+        loading: false,
+        error: null,
+        ...parsed.workspace,
+      };
+    }
+    return parsed;
   } catch {
     return undefined;
   }
@@ -13,9 +22,16 @@ export const loadState = () => {
 
 export const saveState = (state) => {
   try {
-    // strip volatile UI bits
-    const { ui, ...rest } = state;
-    localStorage.setItem(KEY, JSON.stringify(rest));
+    // Only persist auth, theme, and currentWorkspaceId. Fetch data fresh from DB on mount/reload.
+    const { auth, theme, workspace } = state;
+    localStorage.setItem(
+      KEY,
+      JSON.stringify({
+        auth,
+        theme,
+        workspace: { currentWorkspaceId: workspace?.currentWorkspaceId },
+      })
+    );
   } catch {}
 };
 

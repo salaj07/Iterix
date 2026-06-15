@@ -9,6 +9,8 @@ import Avatar from "@/components/common/Avatar";
 import { Input } from "@/components/common/Primitives";
 import { formatRelative } from "@/lib/format";
 import { markRead } from "@/store/slices/notificationsSlice";
+import { setCurrentWorkspace } from "@/store/slices/workspaceSlice";
+import { toast } from "sonner";
 
 function useClickOutside(cb) {
   const ref = useRef(null);
@@ -39,6 +41,12 @@ export default function Topbar({ onOpenMobileSidebar }) {
   const profRef = useClickOutside(() => setProfOpen(false));
   const wsRef = useClickOutside(() => setWsOpen(false));
 
+  const handleSwitchWorkspace = (ws) => {
+    dispatch(setCurrentWorkspace(ws.id || ws._id));
+    setWsOpen(false);
+    toast.success(`Switched to ${ws.name}`);
+  };
+
   return (
     <header className="h-16 sticky top-0 z-20 bg-background/70 backdrop-blur-xl border-b border-border flex items-center gap-3 px-4 md:px-6">
       <button className="md:hidden p-2 -ml-1 rounded-lg hover:bg-foreground/5" onClick={onOpenMobileSidebar}>
@@ -62,7 +70,7 @@ export default function Topbar({ onOpenMobileSidebar }) {
             >
               <div className="px-2 py-1.5 text-[11px] uppercase tracking-wider text-muted-foreground">Your workspaces</div>
               {workspaces.map(ws => (
-                <button key={ws.id} onClick={() => { setWsOpen(false); navigate("/app/workspaces"); }}
+                <button key={ws.id} onClick={() => handleSwitchWorkspace(ws)}
                   className="w-full flex items-center gap-2 px-2 py-2 rounded-lg hover:bg-foreground/5 text-sm">
                   <div className="w-7 h-7 rounded-md bg-[color:var(--primary)]/15 flex items-center justify-center text-[color:var(--primary)] text-xs font-semibold">
                     {ws.name.slice(0,1)}

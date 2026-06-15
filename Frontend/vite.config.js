@@ -14,6 +14,14 @@ export default defineConfig({
     host: "::",
     port: 5173,
     strictPort: true,
+    proxy: {
+      // Proxy all /api requests to the Express backend in dev
+      "/api": {
+        target: "http://localhost:3000",
+        changeOrigin: true,
+        secure: false,
+      },
+    },
   },
   preview: {
     host: "::",

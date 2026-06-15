@@ -1,13 +1,46 @@
-import { createSlice } from "@reduxjs/toolkit";
+import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
+import * as workspaceApi from "@/services/workspace.api";
+import * as invitationApi from "@/services/invitation.api";
 import { uid } from "@/lib/uid";
 import { ROLES } from "../seed";
 
+/* ─── Async Thunks ────────────────────────────────────────────────────── */
+
+/** Fetch all members of a workspace */
+export const fetchMembers = createAsyncThunk(
+  "org/fetchMembers",
+  async (workspaceId, { rejectWithValue }) => {
+    try {
+      const res = await workspaceApi.getWorkspaceMembers(workspaceId);
+      return res.data; // { success, data: [...members] }
+    } catch (err) {
+      return rejectWithValue(err.response?.data || { message: "Failed to load members" });
+    }
+  }
+);
+
+/** Invite a member to a workspace */
+export const inviteMemberAsync = createAsyncThunk(
+  "org/inviteMember",
+  async ({ workspaceId, email, role }, { rejectWithValue }) => {
+    try {
+      const res = await invitationApi.inviteMember(workspaceId, email, role);
+      return res.data; // { success, data: invitation }
+    } catch (err) {
+      return rejectWithValue(err.response?.data || { message: "Failed to send invitation" });
+    }
+  }
+);
+
+/* ─── Slice ───────────────────────────────────────────────────────────── */
 const slice = createSlice({
   name: "org",
   initialState: {
     orgs: [], // [{id, workspaceId, name, description, teamSize, ownerId, logo}]
     members: [], // [{id, orgId, name, email, role, avatarColor}]
     invitations: [], // [{id, orgId, name, email, role, status, sentAt}]
+    loading: false,
+    error: null,
   },
   reducers: {
     createOrg: {
@@ -52,6 +85,43 @@ const slice = createSlice({
         });
       }
     },
+  },
+  extraReducers: (builder) => {
+    /* fetchMembers */
+    builder
+      .addCase(fetchMembers.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchMembers.fulfilled, (state, { payload }) => {
+        state.loading = false;
+        const colors = ["#FF6044", "#A79277", "#6b5b47", "#8a7a63", "#d14a30"];
+        state.members = (payload.data || []).map((m, idx) => ({
+          ...m,
+          id: m.id || m._id,
+          avatarColor: m.avatarColor || colors[idx % colors.length]
+        }));
+      })
+      .addCase(fetchMembers.rejected, (state, { payload }) => {
+        state.loading = false;
+        state.error = payload?.message || "Failed to load members";
+      });
+
+    /* inviteMemberAsync */
+    builder
+      .addCase(inviteMemberAsync.fulfilled, (state, { payload }) => {
+        const inv = payload.data;
+        if (inv) {
+          state.invitations.push({
+            ...inv,
+            id: inv.id || inv._id,
+            name: inv.email.split("@")[0],
+            role: inv.role || "MEMBER",
+            sentAt: inv.createdAt || Date.now(),
+            status: inv.status || "pending"
+          });
+        }
+      });
   },
 });
 

@@ -11,15 +11,16 @@ import KanbanBoard from "@/components/kanban/KanbanBoard";
 import CreateTaskModal from "@/components/tasks/CreateTaskModal";
 import { roleLabel, roleTone, formatDate, priorityTone, typeTone, formatRelative } from "@/lib/format";
 import { openTask } from "@/store/slices/uiSlice";
-import { unarchiveTask } from "@/store/slices/tasksSlice";
+import { unarchiveTask, updateTaskDetailsAsync } from "@/store/slices/tasksSlice";
 import { cn } from "@/lib/utils";
 
 export default function ProjectDetail() {
   const { id } = useParams();
-  const project = useSelector(s => s.projects.projects.find(p => p.id === id));
+  const project = useSelector(s => s.projects.projects.find(p => p.id === id || p._id === id));
   const members = useSelector(s => s.org.members);
   const sprints = useSelector(s => s.sprints.sprints.filter(s => s.projectId === id));
   const tasks = useSelector(s => s.tasks.tasks.filter(t => t.projectId === id));
+  const activeTasks = tasks.filter(t => !t.archived);
   const dispatch = useDispatch();
   const [tab, setTab] = useState("overview");
   const [createOpen, setCreateOpen] = useState(false);
@@ -35,7 +36,7 @@ export default function ProjectDetail() {
   }
 
   const lead = members.find(m => m.id === project.teamLeadId);
-  const memberObjs = members.filter(m => project.memberIds.includes(m.id));
+  const memberObjs = members.filter(m => project.memberIds?.includes(m.id));
   const activeSprint = sprints.find(s => s.status === "active");
 
   return (
@@ -53,9 +54,9 @@ export default function ProjectDetail() {
       </div>
 
       <div className="grid lg:grid-cols-4 gap-3">
-        <Mini label="Tasks" value={tasks.length} />
-        <Mini label="Completed" value={tasks.filter(t => t.status === "Done").length} />
-        <Mini label="Story points" value={tasks.reduce((a, t) => a + (t.points || 0), 0)} />
+        <Mini label="Tasks" value={activeTasks.length} />
+        <Mini label="Completed" value={activeTasks.filter(t => t.status === "Done").length} />
+        <Mini label="Story points" value={activeTasks.reduce((a, t) => a + (t.points || 0), 0)} />
         <Mini label="Active sprint" value={activeSprint ? activeSprint.name.split("—")[0]?.trim() : "—"} />
       </div>
 
@@ -97,7 +98,7 @@ export default function ProjectDetail() {
             <GlassCard>
               <h3 className="font-display font-semibold mb-3">Recent tasks</h3>
               <ul className="space-y-1">
-                {tasks.slice(0, 6).map(t => (
+                {activeTasks.slice(0, 6).map(t => (
                   <li key={t.id}>
                     <button onClick={() => dispatch(openTask(t.id))} className="w-full flex items-center gap-3 px-2 py-2 rounded-md hover:bg-foreground/5 text-left">
                       <Badge tone={typeTone(t.type)} className="border-transparent">{t.type}</Badge>
@@ -143,7 +144,7 @@ export default function ProjectDetail() {
       {tab === "backlog" && (
         <GlassCard className="p-0 overflow-hidden">
           <ul className="divide-y divide-border">
-            {tasks.filter(t => t.status === "Backlog").map(t => (
+            {activeTasks.filter(t => t.status === "Backlog").map(t => (
               <li key={t.id}>
                 <button onClick={() => dispatch(openTask(t.id))} className="w-full flex items-center gap-3 px-4 py-3 hover:bg-foreground/5 text-left">
                   <Badge tone={typeTone(t.type)} className="border-transparent">{t.type}</Badge>
@@ -153,7 +154,7 @@ export default function ProjectDetail() {
                 </button>
               </li>
             ))}
-            {tasks.filter(t => t.status === "Backlog").length === 0 && (
+            {activeTasks.filter(t => t.status === "Backlog").length === 0 && (
               <li className="py-12 text-center text-sm text-muted-foreground">Backlog is empty.</li>
             )}
           </ul>
@@ -163,7 +164,7 @@ export default function ProjectDetail() {
       {tab === "timeline" && (
         <GlassCard>
           <ul className="space-y-3">
-            {tasks.slice().sort((a, b) => (b.history.slice(-1)[0]?.at || 0) - (a.history.slice(-1)[0]?.at || 0)).map(t => (
+            {activeTasks.slice().sort((a, b) => (b.history.slice(-1)[0]?.at || 0) - (a.history.slice(-1)[0]?.at || 0)).map(t => (
               <li key={t.id} className="flex gap-3 items-start">
                 <div className="w-8 h-8 rounded-full bg-foreground/5 flex items-center justify-center shrink-0 mt-0.5">
                   <Clock size={13} className="text-muted-foreground" />
@@ -196,7 +197,11 @@ export default function ProjectDetail() {
                     <span className="text-xs text-muted-foreground hidden md:inline">archived {formatRelative(t.archivedAt || 0)}</span>
                   </button>
                   <button
-                    onClick={() => { dispatch(unarchiveTask({ id: t.id })); toast.success("Restored to board"); }}
+                    onClick={() => {
+                      dispatch(unarchiveTask({ id: t.id }));
+                      dispatch(updateTaskDetailsAsync({ taskId: t.id, data: { archived: false } }));
+                      toast.success("Restored to board");
+                    }}
                     className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-1 rounded-md bg-foreground/5 hover:bg-foreground/10 text-muted-foreground"
                     title="Restore to board"
                   >
