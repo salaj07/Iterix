@@ -48,6 +48,7 @@ const MATRIX = {
   ]),
   DEVELOPER: new Set([
     "ACCESS_SETTINGS",
+    "CREATE_TASK",
     "UPDATE_OWN_TASK","SUBMIT_FOR_REVIEW","COMMENT",
   ]),
 };

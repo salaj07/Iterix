@@ -13,9 +13,12 @@ import { ROLES } from "@/store/seed";
 
 export default function Teams() {
   const dispatch = useDispatch();
+  const user = useSelector(s => s.auth.user);
   const members = useSelector(s => s.org.members);
   const invitations = useSelector(s => s.org.invitations);
   const currentWorkspaceId = useSelector(s => s.workspace.currentWorkspaceId);
+  const me = members.find(m => m.id === user?.id) || { ...user, role: ROLES.DEVELOPER };
+  const isWorkspaceAdmin = me.role === ROLES.ADMIN;
 
   const [inviteOpen, setInviteOpen] = useState(false);
   const [form, setForm] = useState({ name: "", email: "", role: ROLES.DEVELOPER });
@@ -63,7 +66,7 @@ export default function Teams() {
           <h1 className="font-display text-3xl font-bold">Team</h1>
           <p className="text-sm text-muted-foreground mt-1">{members.length} members · {invitations.filter(i => i.status === "pending").length} pending invites</p>
         </div>
-        <Button onClick={() => setInviteOpen(true)}><Plus size={16} /> Invite member</Button>
+        {isWorkspaceAdmin && <Button onClick={() => setInviteOpen(true)}><Plus size={16} /> Invite member</Button>}
       </div>
 
       <GlassCard className="p-0 overflow-hidden">
@@ -83,39 +86,43 @@ export default function Teams() {
               </div>
             </div>
             <div className="col-span-3 hidden md:block text-sm text-muted-foreground truncate">{m.email}</div>
-            <div className="col-span-3 md:col-span-2">
-              <Select
-                value={m.role}
-                onChange={async (e) => {
-                  const newRole = e.target.value;
-                  const res = await dispatch(updateMemberRoleAsync({ workspaceId: currentWorkspaceId, memberId: m.id, role: newRole }));
-                  if (updateMemberRoleAsync.fulfilled.match(res)) {
-                    toast.success("Member role updated");
-                  } else {
-                    toast.error(res.payload?.message || "Failed to update role");
-                  }
-                }}
-                className="h-8 text-xs py-0"
-              >
-                <option value={ROLES.ADMIN}>Admin</option>
-                <option value={ROLES.TEAM_LEAD}>Team Lead</option>
-                <option value={ROLES.DEVELOPER}>Developer</option>
-              </Select>
-            </div>
+              {isWorkspaceAdmin && m.id !== user?.id ? (
+                <Select
+                  value={m.role}
+                  onChange={async (e) => {
+                    const newRole = e.target.value;
+                    const res = await dispatch(updateMemberRoleAsync({ workspaceId: currentWorkspaceId, memberId: m.id, role: newRole }));
+                    if (updateMemberRoleAsync.fulfilled.match(res)) {
+                      toast.success("Member role updated");
+                    } else {
+                      toast.error(res.payload?.message || "Failed to update role");
+                    }
+                  }}
+                  className="h-8 text-xs py-0"
+                >
+                  <option value={ROLES.ADMIN}>Admin</option>
+                  <option value={ROLES.TEAM_LEAD}>Team Lead</option>
+                  <option value={ROLES.DEVELOPER}>Developer</option>
+                </Select>
+              ) : (
+                <span className="text-sm font-medium text-muted-foreground px-2 py-1">{roleLabel(m.role)}</span>
+              )}
             <div className="col-span-4 md:col-span-2 text-right">
-              <button
-                onClick={async () => {
-                  const res = await dispatch(removeMemberAsync({ workspaceId: currentWorkspaceId, memberId: m.id }));
-                  if (removeMemberAsync.fulfilled.match(res)) {
-                    toast.success("Member removed");
-                  } else {
-                    toast.error(res.payload?.message || "Failed to remove member");
-                  }
-                }}
-                className="p-1.5 rounded-md hover:bg-foreground/5 text-muted-foreground"
-              >
-                <Trash2 size={15} />
-              </button>
+              {isWorkspaceAdmin && m.id !== user?.id && (
+                <button
+                  onClick={async () => {
+                    const res = await dispatch(removeMemberAsync({ workspaceId: currentWorkspaceId, memberId: m.id }));
+                    if (removeMemberAsync.fulfilled.match(res)) {
+                      toast.success("Member removed");
+                    } else {
+                      toast.error(res.payload?.message || "Failed to remove member");
+                    }
+                  }}
+                  className="p-1.5 rounded-md hover:bg-foreground/5 text-muted-foreground"
+                >
+                  <Trash2 size={15} />
+                </button>
+              )}
             </div>
           </div>
         ))}

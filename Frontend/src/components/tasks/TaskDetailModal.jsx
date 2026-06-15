@@ -62,6 +62,8 @@ export default function TaskDetailModal({ taskId, onClose }) {
   const project = projects.find(p => p.id === task.projectId);
   const sprint = sprints.find(s => s.id === task.sprintId);
   const role = me?.role;
+  const projectRole = project?.memberRole || "DEVELOPER";
+  const isDeveloper = projectRole === "DEVELOPER";
   const isAssignee = task.assigneeId && task.assigneeId === user?.id;
   const canMoveAny = can(role, ACTIONS.MOVE_TASK_ANY);
   const canReview = can(role, ACTIONS.APPROVE_TASK) && task.status === "In Review";
@@ -218,24 +220,28 @@ export default function TaskDetailModal({ taskId, onClose }) {
                 setEdited(prev => ({ ...prev, assigneeId: val }));
               }}>
                 <option value="">Unassigned</option>
-                {members.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+                {isDeveloper ? (
+                  <option value={user?.id}>{user?.name} (You)</option>
+                ) : (
+                  members.map(m => <option key={m.id} value={m.id}>{m.name}</option>)
+                )}
               </Select>
             </Field>
             <Field label="Priority">
-              <Select value={edited.priority !== undefined ? edited.priority : task.priority} onChange={(e) => {
+              <Select disabled={isDeveloper} value={edited.priority !== undefined ? edited.priority : task.priority} onChange={(e) => {
                 setEdited(prev => ({ ...prev, priority: e.target.value }));
               }}>
                 {PRIORITIES.map(p => <option key={p}>{p}</option>)}
               </Select>
             </Field>
             <Field label="Story points">
-              <Input type="number" value={edited.points !== undefined ? (edited.points ?? "") : (task.points ?? "")} min={0} onChange={(e) => {
+              <Input type="number" disabled={isDeveloper} value={edited.points !== undefined ? (edited.points ?? "") : (task.points ?? "")} min={0} onChange={(e) => {
                 const val = e.target.value === "" ? null : Number(e.target.value);
                 setEdited(prev => ({ ...prev, points: val }));
               }} />
             </Field>
             <Field label="Due date">
-              <Input type="date"
+              <Input type="date" disabled={isDeveloper}
                 value={edited.dueDate !== undefined 
                   ? (edited.dueDate ? new Date(edited.dueDate).toISOString().slice(0,10) : "") 
                   : (task.dueDate ? new Date(task.dueDate).toISOString().slice(0,10) : "")}

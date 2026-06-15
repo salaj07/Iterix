@@ -22,6 +22,8 @@ export default function CreateTaskModal({ open, onClose, projectId, defaultStatu
   const [assigneeId, setAssigneeId] = useState("");
   const [proj, setProj] = useState(projectId || projects[0]?.id || "");
   const sprintForProj = sprints.find(s => s.projectId === proj && s.status === "active");
+  const selectedProject = projects.find(p => p.id === proj);
+  const isDeveloper = selectedProject && selectedProject.memberRole === "DEVELOPER";
 
   useEffect(() => {
     if (open) {
@@ -63,9 +65,27 @@ export default function CreateTaskModal({ open, onClose, projectId, defaultStatu
         <div><Label>Description</Label><Textarea className="mt-1.5" value={description} onChange={(e) => setDescription(e.target.value)} rows={4} placeholder="Add context, links, acceptance criteria…" /></div>
         <div className="grid grid-cols-2 gap-3">
           <div><Label>Project</Label><Select className="mt-1.5" value={proj} onChange={(e) => setProj(e.target.value)}>{projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</Select></div>
-          <div><Label>Assignee</Label><Select className="mt-1.5" value={assigneeId} onChange={(e) => setAssigneeId(e.target.value)}><option value="">Unassigned</option>{members.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</Select></div>
-          <div><Label>Priority</Label><Select className="mt-1.5" value={priority} onChange={(e) => setPriority(e.target.value)}>{PRIORITIES.map(p => <option key={p}>{p}</option>)}</Select></div>
-          <div><Label>Story points</Label><Input className="mt-1.5" type="number" min={0} value={points} onChange={(e) => setPoints(e.target.value)} /></div>
+          <div>
+            <Label>Assignee</Label>
+            <Select className="mt-1.5" value={assigneeId} onChange={(e) => setAssigneeId(e.target.value)}>
+              <option value="">Unassigned</option>
+              {isDeveloper ? (
+                <option value={user?.id}>{user?.name} (You)</option>
+              ) : (
+                members.map(m => <option key={m.id} value={m.id}>{m.name}</option>)
+              )}
+            </Select>
+          </div>
+          <div>
+            <Label>Priority</Label>
+            <Select className="mt-1.5" disabled={isDeveloper} value={priority} onChange={(e) => setPriority(e.target.value)}>
+              {PRIORITIES.map(p => <option key={p}>{p}</option>)}
+            </Select>
+          </div>
+          <div>
+            <Label>Story points</Label>
+            <Input className="mt-1.5" type="number" disabled={isDeveloper} min={0} value={points} onChange={(e) => setPoints(e.target.value)} />
+          </div>
         </div>
       </div>
     </Modal>

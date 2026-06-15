@@ -88,29 +88,85 @@ const createProject = async (data, currentUser) => {
  * Get all projects for logged-in user
  */
 const getUserProjects = async (currentUser) => {
+  // Find workspaces where user is ADMIN
+  const adminMemberships = await WorkspaceMember.find({
+    user: currentUser._id,
+    role: "ADMIN",
+    isActive: true,
+  });
+  const adminWorkspaceIds = adminMemberships.map(m => m.workspace);
+
+  // Get projects they are member of
   const memberships = await ProjectMember.find({
     user: currentUser._id,
     isActive: true,
   }).populate("project");
 
-  return memberships;
+  let projects = memberships.map(m => m.project).filter(Boolean);
+
+  // If admin in any workspaces, get all projects in those workspaces
+  if (adminWorkspaceIds.length > 0) {
+    const adminProjects = await Project.find({
+      workspace: { $in: adminWorkspaceIds },
+    });
+
+    // Combine and remove duplicates
+    const projectIds = new Set(projects.map(p => p._id.toString()));
+    adminProjects.forEach(p => {
+      if (!projectIds.has(p._id.toString())) {
+        projects.push(p);
+      }
+    });
+  }
+
+  // Construct dummy memberships for workspace admin projects so the frontend gets the expected structure
+  const projectMemberships = projects.map(p => {
+    const originalMembership = memberships.find(m => m.project && m.project._id.toString() === p._id.toString());
+    if (originalMembership) {
+      return originalMembership;
+    }
+    return {
+      project: p,
+      role: "TEAM_LEAD",
+      user: currentUser._id,
+      isActive: true,
+    };
+  });
+
+  return projectMemberships;
 };
 
 /**
  * Get project by ID
  */
 const getProjectById = async (projectId, currentUser) => {
-  const membership = await ProjectMember.findOne({
-    project: projectId,
+  const project = await Project.findById(projectId);
+  if (!project) {
+    throw new Error("Project not found");
+  }
+
+  // Check if workspace ADMIN
+  const isAdmin = await WorkspaceMember.findOne({
+    workspace: project.workspace,
     user: currentUser._id,
+    role: "ADMIN",
     isActive: true,
   });
 
-  if (!membership) {
-    throw new Error("Access denied");
+  if (!isAdmin) {
+    // Check if project member
+    const membership = await ProjectMember.findOne({
+      project: projectId,
+      user: currentUser._id,
+      isActive: true,
+    });
+
+    if (!membership) {
+      throw new Error("Access denied");
+    }
   }
 
-  return await Project.findById(projectId);
+  return project;
 };
 
 /**
@@ -144,14 +200,29 @@ const archiveProject = async (projectId, currentUser) => {
  * Get project members
  */
 const getProjectMembers = async (projectId, currentUser) => {
-  const access = await ProjectMember.findOne({
-    project: projectId,
+  const project = await Project.findById(projectId);
+  if (!project) {
+    throw new Error("Project not found");
+  }
+
+  // Check if workspace ADMIN
+  const isAdmin = await WorkspaceMember.findOne({
+    workspace: project.workspace,
     user: currentUser._id,
+    role: "ADMIN",
     isActive: true,
   });
 
-  if (!access) {
-    throw new Error("Access denied");
+  if (!isAdmin) {
+    const access = await ProjectMember.findOne({
+      project: projectId,
+      user: currentUser._id,
+      isActive: true,
+    });
+
+    if (!access) {
+      throw new Error("Access denied");
+    }
   }
 
   const members = await ProjectMember.find({
@@ -172,22 +243,29 @@ const getProjectMembers = async (projectId, currentUser) => {
 
 
 const getProjectDashboard = async (projectId, currentUser) => {
-  // Check user is a member of the project
-  const membership = await ProjectMember.findOne({
-    project: projectId,
+  const project = await Project.findById(projectId);
+  if (!project) {
+    throw new Error("Project not found");
+  }
+
+  // Check if workspace ADMIN
+  const isAdmin = await WorkspaceMember.findOne({
+    workspace: project.workspace,
     user: currentUser._id,
+    role: "ADMIN",
     isActive: true,
   });
 
-  if (!membership) {
-    throw new Error("Access denied");
-  }
+  if (!isAdmin) {
+    const membership = await ProjectMember.findOne({
+      project: projectId,
+      user: currentUser._id,
+      isActive: true,
+    });
 
-  // Get project details
-  const project = await Project.findById(projectId);
-
-  if (!project) {
-    throw new Error("Project not found");
+    if (!membership) {
+      throw new Error("Access denied");
+    }
   }
 
   // Count team leads
