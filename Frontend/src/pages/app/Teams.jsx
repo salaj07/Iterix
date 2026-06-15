@@ -208,7 +208,7 @@ export default function Teams() {
                       }}
                       className="h-8 text-xs py-0"
                     >
-                      <option value="TEAM_LEAD">Team Lead</option>
+                      <option value="TEAM_LEAD">Project Lead</option>
                       <option value="DEVELOPER">Developer</option>
                     </Select>
                   ) : (
@@ -280,7 +280,7 @@ export default function Teams() {
                       className="h-8 text-xs py-0"
                     >
                       <option value={ROLES.ADMIN}>Admin</option>
-                      <option value={ROLES.TEAM_LEAD}>Team Lead</option>
+                      <option value={ROLES.TEAM_LEAD}>Project Lead</option>
                       <option value={ROLES.DEVELOPER}>Developer</option>
                     </Select>
                   ) : (
@@ -343,7 +343,7 @@ export default function Teams() {
           <div><Label>Role</Label>
             <Select className="mt-1.5" value={wsInviteForm.role} onChange={(e) => setWsInviteForm({ ...wsInviteForm, role: e.target.value })}>
               <option value={ROLES.ADMIN}>Admin</option>
-              <option value={ROLES.TEAM_LEAD}>Team Lead</option>
+              <option value={ROLES.TEAM_LEAD}>Project Lead</option>
               <option value={ROLES.DEVELOPER}>Developer</option>
             </Select>
           </div>

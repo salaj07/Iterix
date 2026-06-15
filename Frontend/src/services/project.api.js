@@ -39,3 +39,7 @@ export const updateProjectMemberRole = (projectId, userId, role) =>
 /** Archive a project */
 export const archiveProject = (projectId) =>
   api.patch(`/api/projects/${projectId}/archive`);
+
+/** Update project details */
+export const updateProject = (projectId, data) =>
+  api.patch(`/api/projects/${projectId}`, data);

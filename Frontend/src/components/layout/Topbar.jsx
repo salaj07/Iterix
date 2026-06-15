@@ -6,9 +6,9 @@ import { Search, Sun, Moon, Bell, Menu, ChevronDown, LogOut, User, Check } from 
 import { toggleTheme } from "@/store/slices/themeSlice";
 import { logout } from "@/store/slices/authSlice";
 import Avatar from "@/components/common/Avatar";
-import { Input } from "@/components/common/Primitives";
 import { formatRelative } from "@/lib/format";
 import { markReadAsync } from "@/store/slices/notificationsSlice";
+import { openSearch } from "@/store/slices/uiSlice";
 
 function useClickOutside(cb) {
   const ref = useRef(null);
@@ -40,11 +40,14 @@ export default function Topbar({ onOpenMobileSidebar }) {
         <Menu size={20} />
       </button>
 
-      <div className="hidden md:flex relative max-w-md flex-1 ml-2">
+      <button 
+        onClick={() => dispatch(openSearch())}
+        className="hidden md:flex relative max-w-md flex-1 ml-2 items-center text-left text-muted-foreground bg-foreground/[0.03] hover:bg-foreground/[0.06] border border-border/50 h-10 px-3 pl-10 rounded-xl transition-all"
+      >
         <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-        <Input placeholder="Search tasks, projects, members..." className="h-10 pl-10 bg-foreground/[0.03]" />
-        <kbd className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground bg-foreground/5 px-1.5 py-0.5 rounded">⌘K</kbd>
-      </div>
+        <span className="text-xs font-normal">Search tasks, projects, members...</span>
+        <kbd className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground bg-foreground/5 px-1.5 py-0.5 rounded font-mono font-medium">⌘K</kbd>
+      </button>
 
       <div className="ml-auto flex items-center gap-1">
         <motion.button

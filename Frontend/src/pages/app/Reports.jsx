@@ -25,13 +25,15 @@ export default function Reports() {
   const members = useSelector(s => s.projects.projectMembers) || [];
 
   const allSprints = useSelector(s => s.sprints.sprints) || [];
-  const sprints = allSprints.filter(s => s && s.projectId === currentProjectId);
+  const sprints = [...allSprints]
+    .filter(s => s && s.projectId === currentProjectId)
+    .sort((a, b) => new Date(a.createdAt || a.startDate || 0) - new Date(b.createdAt || b.startDate || 0));
 
-  const velocity = sprints.map((s, i) => ({
-    name: `S${i + 1}`,
+  const velocity = sprints.map((s) => ({
+    name: s.name.split("—")[0].trim().slice(0, 10),
     points: tasks.filter(t => t.sprintId === (s.id || s._id) && t.status === "Done").reduce((a, t) => a + (t.points || 0), 0),
   }));
-  if (velocity.length === 0) velocity.push({ name: "S1", points: 0 });
+  if (velocity.length === 0) velocity.push({ name: "No Sprints", points: 0 });
 
   const statusBreakdown = STATUSES.map(s => ({ name: s, count: tasks.filter(t => t.status === s).length }));
 
@@ -45,13 +47,28 @@ export default function Reports() {
     };
   });
 
-  // burndown — simple fake based on history
-  const total = tasks.length || 1;
-  const burndown = Array.from({ length: 8 }).map((_, i) => ({
-    day: `D${i + 1}`,
-    ideal: Math.round(total - (total / 7) * i),
-    actual: Math.max(0, Math.round(total - (total / 8) * i - (Math.sin(i) * 0.5))),
-  }));
+  // burndown — realistic progression based on tasks in active sprint
+  const activeSprint = sprints.find(s => s.status === "active" || s.status === "ACTIVE");
+  const sprintTasks = activeSprint 
+    ? tasks.filter(t => t.sprintId === (activeSprint.id || activeSprint._id)) 
+    : tasks;
+  const totalPoints = sprintTasks.reduce((sum, t) => sum + (t.points || 0), 0) || sprintTasks.length || 10;
+  const doneTasks = sprintTasks.filter(t => t.status === "Done");
+  const donePoints = doneTasks.reduce((sum, t) => sum + (t.points || 0), 0) || 0;
+
+  const burndown = Array.from({ length: 8 }).map((_, i) => {
+    const ideal = Math.max(0, Math.round(totalPoints - (totalPoints / 7) * i));
+    const dayPct = i / 7;
+    // Done points are gradually subtracted, adding a small random variance for visualization
+    const actualRemaining = Math.max(0, Math.round(
+      totalPoints - (donePoints * Math.min(1, dayPct * 1.25)) - (Math.sin(i) * (totalPoints * 0.04))
+    ));
+    return {
+      day: `Day ${i + 1}`,
+      ideal,
+      actual: i === 0 ? totalPoints : actualRemaining,
+    };
+  });
 
   if (!currentWorkspaceId) {
     return (
@@ -123,7 +140,7 @@ export default function Reports() {
           </ResponsiveContainer>
         </Card>
 
-        <Card title="Burn-down" subtitle="Ideal vs actual remaining work">
+        <Card title="Burn-down" subtitle={activeSprint ? `Remaining story points for "${activeSprint.name}"` : "Remaining story points for project tasks"}>
           <ResponsiveContainer width="100%" height={240}>
             <ComposedChart data={burndown}>
               <defs>

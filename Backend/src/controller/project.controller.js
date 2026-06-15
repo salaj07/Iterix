@@ -179,6 +179,28 @@ const updateProjectMemberRole = async (req, res, next) => {
   }
 };
 
+/**
+ * Update Project Details
+ */
+const updateProject = async (req, res, next) => {
+  try {
+    const { projectId } = req.params;
+    const project = await projectService.updateProject(
+      projectId,
+      req.body,
+      req.user
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: "Project updated successfully",
+      data: project,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   createProject,
   getUserProjects,
@@ -189,4 +211,5 @@ module.exports = {
   addProjectMember,
   removeProjectMember,
   updateProjectMemberRole,
+  updateProject,
 };

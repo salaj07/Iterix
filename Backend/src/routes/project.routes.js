@@ -30,6 +30,9 @@ router.delete("/:projectId/members/:userId", protect, projectIdRules, validate, 
 // Get Project By ID
 router.get("/:projectId", protect, projectIdRules, validate, projectController.getProjectById);
 
+// Update Project Details
+router.patch("/:projectId", protect, projectIdRules, validate, projectController.updateProject);
+
 // Archive Project
 router.patch("/:projectId/archive", protect, projectIdRules, validate, projectController.archiveProject);
 

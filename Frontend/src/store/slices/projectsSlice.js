@@ -42,6 +42,19 @@ export const archiveProjectAsync = createAsyncThunk(
   }
 );
 
+/** Update project details */
+export const updateProjectAsync = createAsyncThunk(
+  "projects/update",
+  async ({ projectId, data }, { rejectWithValue }) => {
+    try {
+      const res = await projectApi.updateProject(projectId, data);
+      return res.data;
+    } catch (err) {
+      return rejectWithValue(err.response?.data || { message: "Failed to update project" });
+    }
+  }
+);
+
 /** Fetch all members of a project */
 export const fetchProjectMembers = createAsyncThunk(
   "projects/fetchMembers",
@@ -244,6 +257,24 @@ const slice = createSlice({
               id: updated.id || updated._id,
               teamLeadId: updated.createdBy || updated.teamLeadId || "",
               memberIds: updated.memberIds || []
+            };
+          }
+        }
+      });
+
+    /* updateProject */
+    builder
+      .addCase(updateProjectAsync.fulfilled, (state, { payload }) => {
+        const updated = payload.data;
+        if (updated) {
+          const idx = state.projects.findIndex((p) => p.id === updated._id || p._id === updated._id);
+          if (idx !== -1) {
+            state.projects[idx] = {
+              ...state.projects[idx],
+              ...updated,
+              id: updated.id || updated._id,
+              teamLeadId: updated.createdBy || updated.teamLeadId || "",
+              memberIds: updated.memberIds || state.projects[idx].memberIds || []
             };
           }
         }

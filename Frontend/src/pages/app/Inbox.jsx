@@ -85,7 +85,7 @@ function EmailBody({ id, user }) {
   switch (id) {
     case "invite": return <Shell>
       <h2 className="font-display text-xl font-bold mb-3">You've been invited</h2>
-      <p className="text-sm leading-relaxed">Hi {user?.name?.split(" ")[0] || "there"}, <b>Maya Lindgren</b> has invited you to join <b>Acme Studio</b> on Iterix as a <b>Team Lead</b>.</p>
+      <p className="text-sm leading-relaxed">Hi {user?.name?.split(" ")[0] || "there"}, <b>Maya Lindgren</b> has invited you to join <b>Acme Studio</b> on Iterix as a <b>Project Lead</b>.</p>
       <Btn>Accept invitation</Btn>
     </Shell>;
     case "project": return <Shell>

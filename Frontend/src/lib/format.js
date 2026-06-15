@@ -6,7 +6,7 @@ export const initials = (name = "") =>
 
 export const roleLabel = (role) => ({
   [ROLES.ADMIN]: "Admin",
-  [ROLES.TEAM_LEAD]: "Team Lead",
+  [ROLES.TEAM_LEAD]: "Project Lead",
   [ROLES.DEVELOPER]: "Developer",
 }[role] || role);
 

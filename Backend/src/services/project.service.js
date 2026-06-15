@@ -268,7 +268,7 @@ const getProjectDashboard = async (projectId, currentUser) => {
     }
   }
 
-  // Count team leads
+  // Count project leads
   const teamLeads = await ProjectMember.countDocuments({
     project: projectId,
     role: "TEAM_LEAD",
@@ -371,7 +371,7 @@ const removeProjectMember = async (projectId, userId, currentUser) => {
       isActive: true,
     });
     if (activeLeadsCount <= 1) {
-      throw new Error("Cannot remove the last active Team Lead from the project");
+      throw new Error("Cannot remove the last active Project Lead from the project");
     }
   }
 
@@ -400,13 +400,54 @@ const updateProjectMemberRole = async (projectId, userId, role, currentUser) => 
       isActive: true,
     });
     if (activeLeadsCount <= 1) {
-      throw new Error("Cannot demote the last active Team Lead from the project");
+      throw new Error("Cannot demote the last active Project Lead from the project");
     }
   }
 
   member.role = role;
   await member.save();
   return member;
+};
+
+/**
+ * Update project details
+ */
+const updateProject = async (projectId, data, currentUser) => {
+  const project = await Project.findById(projectId);
+  if (!project) {
+    throw new Error("Project not found");
+  }
+
+  // Check if workspace ADMIN
+  const isAdmin = await WorkspaceMember.findOne({
+    workspace: project.workspace,
+    user: currentUser._id,
+    role: "ADMIN",
+    isActive: true,
+  });
+
+  if (!isAdmin) {
+    // Check if Project Lead (TEAM_LEAD)
+    const isLead = await ProjectMember.findOne({
+      project: projectId,
+      user: currentUser._id,
+      role: "TEAM_LEAD",
+      isActive: true,
+    });
+
+    if (!isLead) {
+      throw new Error("Only workspace admins and project leads can edit this project");
+    }
+  }
+
+  // Update fields
+  const { name, key, description } = data;
+  if (name !== undefined) project.name = name.trim();
+  if (key !== undefined) project.projectKey = key.toUpperCase().trim();
+  if (description !== undefined) project.description = description.trim();
+
+  await project.save();
+  return project;
 };
 
 module.exports = {
@@ -419,4 +460,5 @@ module.exports = {
   addProjectMember,
   removeProjectMember,
   updateProjectMemberRole,
+  updateProject,
 };
