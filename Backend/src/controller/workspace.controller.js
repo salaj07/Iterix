@@ -98,6 +98,47 @@ const getWorkspaceMembers = async (req, res, next) => {
   }
 };
 
+const updateMemberRole = async (req, res, next) => {
+  try {
+    const { workspaceId, memberId } = req.params;
+    const { role } = req.body;
+
+    const result = await workspaceService.updateMemberRole(
+      workspaceId,
+      req.user,
+      memberId,
+      role
+    );
+
+    res.status(200).json({
+      success: true,
+      message: "Member role updated successfully",
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const removeMember = async (req, res, next) => {
+  try {
+    const { workspaceId, memberId } = req.params;
+
+    await workspaceService.removeMember(
+      workspaceId,
+      req.user,
+      memberId
+    );
+
+    res.status(200).json({
+      success: true,
+      message: "Member removed from workspace successfully",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   createWorkspace,
   getUserWorkspaces,
@@ -105,4 +146,6 @@ module.exports = {
   updateWorkspace,
   deleteWorkspace,
   getWorkspaceMembers,
+  updateMemberRole,
+  removeMember,
 };

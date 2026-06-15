@@ -7,7 +7,7 @@ const { sendInvitationEmail } = require("./email.service");
 /**
  * Invite a user to a workspace
  */
-const inviteMember = async (workspaceId, adminUser, email) => {
+const inviteMember = async (workspaceId, adminUser, email, role = "DEVELOPER") => {
   // Check workspace exists
   const workspace = await Workspace.findById(workspaceId);
 
@@ -53,11 +53,18 @@ const inviteMember = async (workspaceId, adminUser, email) => {
     throw new Error("Invitation already sent");
   }
 
+  // Delete any existing accepted or rejected invitations for this user to clear history and prevent unique constraint conflicts
+  await Invitation.deleteMany({
+    workspace: workspaceId,
+    email,
+  });
+
   // Create invitation
   const invitation = await Invitation.create({
     workspace: workspaceId,
     email,
     invitedBy: adminUser._id,
+    role,
   });
 
   // Send email
@@ -94,11 +101,23 @@ const acceptInvitation = async (invitationId, user) => {
     throw new Error("This invitation does not belong to your account");
   }
 
-  await WorkspaceMember.create({
+  // Reactivate existing soft-deleted member if they previously belonged to the workspace, to prevent unique index duplicate errors
+  const existingMember = await WorkspaceMember.findOne({
     workspace: invitation.workspace,
     user: user._id,
-    role: "MEMBER",
   });
+
+  if (existingMember) {
+    existingMember.isActive = true;
+    existingMember.role = invitation.role || "DEVELOPER";
+    await existingMember.save();
+  } else {
+    await WorkspaceMember.create({
+      workspace: invitation.workspace,
+      user: user._id,
+      role: invitation.role || "DEVELOPER",
+    });
+  }
 
   invitation.status = "ACCEPTED";
   await invitation.save();

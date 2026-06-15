@@ -119,6 +119,64 @@ const getWorkspaceMembers = async (workspaceId, currentUser) => {
   }));
 };
 
+const updateMemberRole = async (workspaceId, adminUser, memberId, newRole) => {
+  // Check if adminUser is indeed an ADMIN of the workspace
+  const adminMembership = await WorkspaceMember.findOne({
+    workspace: workspaceId,
+    user: adminUser._id,
+    role: "ADMIN",
+    isActive: true,
+  });
+
+  if (!adminMembership) {
+    throw new Error("Only workspace admins can update member roles");
+  }
+
+  // Update role
+  const membership = await WorkspaceMember.findOneAndUpdate(
+    { workspace: workspaceId, user: memberId, isActive: true },
+    { role: newRole },
+    { new: true }
+  );
+
+  if (!membership) {
+    throw new Error("Workspace member not found");
+  }
+
+  return membership;
+};
+
+const removeMember = async (workspaceId, adminUser, memberId) => {
+  // Check if adminUser is indeed an ADMIN of the workspace
+  const adminMembership = await WorkspaceMember.findOne({
+    workspace: workspaceId,
+    user: adminUser._id,
+    role: "ADMIN",
+    isActive: true,
+  });
+
+  if (!adminMembership) {
+    throw new Error("Only workspace admins can remove members");
+  }
+
+  // Prevent removing workspace owner
+  const workspace = await Workspace.findById(workspaceId);
+  if (workspace && workspace.owner.toString() === memberId.toString()) {
+    throw new Error("Cannot remove the workspace owner");
+  }
+
+  // Soft delete membership
+  const membership = await WorkspaceMember.findOneAndUpdate(
+    { workspace: workspaceId, user: memberId, isActive: true },
+    { isActive: false },
+    { new: true }
+  );
+
+  if (!membership) {
+    throw new Error("Workspace member not found");
+  }
+};
+
 module.exports = {
   createWorkspace,
   getUserWorkspaces,
@@ -126,4 +184,6 @@ module.exports = {
   updateWorkspace,
   deleteWorkspace,
   getWorkspaceMembers,
+  updateMemberRole,
+  removeMember,
 };

@@ -71,6 +71,32 @@ export const fetchMyInvitations = createAsyncThunk(
   }
 );
 
+/** Update workspace member role */
+export const updateMemberRoleAsync = createAsyncThunk(
+  "org/updateMemberRole",
+  async ({ workspaceId, memberId, role }, { rejectWithValue }) => {
+    try {
+      const res = await workspaceApi.updateWorkspaceMemberRole(workspaceId, memberId, role);
+      return { memberId, role, ...res.data };
+    } catch (err) {
+      return rejectWithValue(err.response?.data || { message: "Failed to update member role" });
+    }
+  }
+);
+
+/** Remove member from workspace */
+export const removeMemberAsync = createAsyncThunk(
+  "org/removeMember",
+  async ({ workspaceId, memberId }, { rejectWithValue }) => {
+    try {
+      await workspaceApi.removeWorkspaceMember(workspaceId, memberId);
+      return { memberId };
+    } catch (err) {
+      return rejectWithValue(err.response?.data || { message: "Failed to remove member" });
+    }
+  }
+);
+
 /* ─── Slice ───────────────────────────────────────────────────────────── */
 const slice = createSlice({
   name: "org",
@@ -136,11 +162,16 @@ const slice = createSlice({
       .addCase(fetchMembers.fulfilled, (state, { payload }) => {
         state.loading = false;
         const colors = ["#FF6044", "#A79277", "#6b5b47", "#8a7a63", "#d14a30"];
-        state.members = (payload.data || []).map((m, idx) => ({
-          ...m,
-          id: m.id || m._id,
-          avatarColor: m.avatarColor || colors[idx % colors.length]
-        }));
+        state.members = (payload.data || []).map((m, idx) => {
+          let role = m.role;
+          if (role === "MEMBER") role = "DEVELOPER";
+          return {
+            ...m,
+            id: m.id || m._id,
+            role,
+            avatarColor: m.avatarColor || colors[idx % colors.length]
+          };
+        });
       })
       .addCase(fetchMembers.rejected, (state, { payload }) => {
         state.loading = false;
@@ -200,6 +231,21 @@ const slice = createSlice({
         if (myInv) {
           myInv.status = "accepted";
         }
+      });
+
+    /* updateMemberRoleAsync */
+    builder
+      .addCase(updateMemberRoleAsync.fulfilled, (state, { payload }) => {
+        const m = state.members.find(x => x.id === payload.memberId);
+        if (m) {
+          m.role = payload.role;
+        }
+      });
+
+    /* removeMemberAsync */
+    builder
+      .addCase(removeMemberAsync.fulfilled, (state, { payload }) => {
+        state.members = state.members.filter(m => m.id !== payload.memberId);
       });
   },
 });

@@ -8,7 +8,7 @@ import Button from "@/components/common/Button";
 import Modal from "@/components/common/Modal";
 import Avatar from "@/components/common/Avatar";
 import { roleLabel, roleTone, formatRelative } from "@/lib/format";
-import { inviteMemberAsync, acceptInvitationAsync, fetchWorkspaceInvitations, fetchMembers } from "@/store/slices/orgSlice";
+import { inviteMemberAsync, acceptInvitationAsync, fetchWorkspaceInvitations, fetchMembers, updateMemberRoleAsync, removeMemberAsync } from "@/store/slices/orgSlice";
 import { ROLES } from "@/store/seed";
 
 export default function Teams() {
@@ -84,15 +84,36 @@ export default function Teams() {
             </div>
             <div className="col-span-3 hidden md:block text-sm text-muted-foreground truncate">{m.email}</div>
             <div className="col-span-3 md:col-span-2">
-              <Select value={m.role} onChange={(e) => dispatch(updateMemberRole({ id: m.id, role: e.target.value }))} className="h-8 text-xs py-0">
+              <Select
+                value={m.role}
+                onChange={async (e) => {
+                  const newRole = e.target.value;
+                  const res = await dispatch(updateMemberRoleAsync({ workspaceId: currentWorkspaceId, memberId: m.id, role: newRole }));
+                  if (updateMemberRoleAsync.fulfilled.match(res)) {
+                    toast.success("Member role updated");
+                  } else {
+                    toast.error(res.payload?.message || "Failed to update role");
+                  }
+                }}
+                className="h-8 text-xs py-0"
+              >
                 <option value={ROLES.ADMIN}>Admin</option>
                 <option value={ROLES.TEAM_LEAD}>Team Lead</option>
                 <option value={ROLES.DEVELOPER}>Developer</option>
               </Select>
             </div>
             <div className="col-span-4 md:col-span-2 text-right">
-              <button onClick={() => { dispatch(removeMember(m.id)); toast.success("Member removed"); }}
-                className="p-1.5 rounded-md hover:bg-foreground/5 text-muted-foreground">
+              <button
+                onClick={async () => {
+                  const res = await dispatch(removeMemberAsync({ workspaceId: currentWorkspaceId, memberId: m.id }));
+                  if (removeMemberAsync.fulfilled.match(res)) {
+                    toast.success("Member removed");
+                  } else {
+                    toast.error(res.payload?.message || "Failed to remove member");
+                  }
+                }}
+                className="p-1.5 rounded-md hover:bg-foreground/5 text-muted-foreground"
+              >
                 <Trash2 size={15} />
               </button>
             </div>
