@@ -74,6 +74,19 @@ export const completeSprintAsync = createAsyncThunk(
   }
 );
 
+/** Delete a sprint */
+export const deleteSprintAsync = createAsyncThunk(
+  "sprints/delete",
+  async (sprintId, { rejectWithValue }) => {
+    try {
+      const res = await sprintApi.deleteSprint(sprintId);
+      return res.data;
+    } catch (err) {
+      return rejectWithValue(err.response?.data || { message: "Failed to delete sprint" });
+    }
+  }
+);
+
 /* ─── Slice ───────────────────────────────────────────────────────────── */
 const slice = createSlice({
   name: "sprints",
@@ -169,6 +182,15 @@ const slice = createSlice({
           if (idx !== -1) {
             state.sprints[idx] = mapSprintFromBackend(updated);
           }
+        }
+      });
+
+    /* deleteSprint */
+    builder
+      .addCase(deleteSprintAsync.fulfilled, (state, { payload }) => {
+        const id = payload.data?.sprintId;
+        if (id) {
+          state.sprints = state.sprints.filter(s => s.id !== id && s._id !== id);
         }
       });
   },

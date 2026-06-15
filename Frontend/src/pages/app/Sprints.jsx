@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { toast } from "sonner";
-import { Plus, Play, Check, Calendar, Loader2, FolderKanban } from "lucide-react";
+import { Plus, Play, Check, Calendar, Loader2, FolderKanban, Trash2 } from "lucide-react";
 import { GlassCard, Badge, Input, Label, Textarea } from "@/components/common/Primitives";
 import Button from "@/components/common/Button";
 import Modal from "@/components/common/Modal";
 import { formatDate } from "@/lib/format";
-import { fetchSprints, createSprintAsync, startSprintAsync, completeSprintAsync } from "@/store/slices/sprintsSlice";
+import { fetchSprints, createSprintAsync, startSprintAsync, completeSprintAsync, deleteSprintAsync } from "@/store/slices/sprintsSlice";
+import { fetchProjectMembers } from "@/store/slices/projectsSlice";
 
 export default function Sprints() {
   const dispatch = useDispatch();
@@ -24,6 +25,9 @@ export default function Sprints() {
   const allTasks = useSelector((s) => s.tasks.tasks) || [];
   const tasks = allTasks.filter((t) => t && t.projectId === currentProjectId);
 
+  const orgMembers = useSelector((s) => s.org.members || []);
+  const projectMembers = useSelector((s) => s.projects.projectMembers || []);
+
   const [open, setOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [form, setForm] = useState({
@@ -33,12 +37,25 @@ export default function Sprints() {
     endDate: "",
   });
 
-  // Fetch sprints for the selected project when it changes
+  // Fetch sprints and members for the selected project when it changes
   useEffect(() => {
     if (currentProjectId) {
       dispatch(fetchSprints(currentProjectId));
+      dispatch(fetchProjectMembers(currentProjectId));
     }
   }, [dispatch, currentProjectId]);
+
+  const user = useSelector(s => s.auth.user);
+  const myWorkspaceMember = orgMembers.find(m => m && m.id === user?.id);
+  const isWorkspaceAdmin = myWorkspaceMember?.role === "ADMIN";
+  const myProjectMember = projectMembers.find(pm => pm && (pm.id === user?.id || pm.userId === user?.id || (pm.user && pm.user._id === user?.id)));
+  const isProjectLead = currentProject && (
+    currentProject.memberRole === "TEAM_LEAD" ||
+    myProjectMember?.role === "TEAM_LEAD" ||
+    String(currentProject.teamLeadId) === String(user?.id) ||
+    String(currentProject.createdBy) === String(user?.id)
+  );
+  const canManageSprints = isWorkspaceAdmin || isProjectLead;
 
   const create = async () => {
     if (!form.name.trim() || !currentProjectId) return;
@@ -87,6 +104,19 @@ export default function Sprints() {
     }
   };
 
+  const handleDelete = async (sprint) => {
+    if (!window.confirm(`Are you sure you want to delete "${sprint.name}"? Any active tasks assigned to this sprint will be moved back to the backlog.`)) {
+      return;
+    }
+    const id = sprint._id || sprint.id;
+    const result = await dispatch(deleteSprintAsync(id));
+    if (deleteSprintAsync.fulfilled.match(result)) {
+      toast.success("Sprint deleted successfully");
+    } else {
+      toast.error(result.payload?.message || "Failed to delete sprint");
+    }
+  };
+
   if (!currentWorkspaceId) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center">
@@ -120,9 +150,11 @@ export default function Sprints() {
           <h1 className="font-display text-3xl font-bold mt-1">Sprints</h1>
           <p className="text-sm text-muted-foreground mt-1">Plan and run iterations for this project.</p>
         </div>
-        <Button onClick={() => setOpen(true)}>
-          <Plus size={16} /> New sprint
-        </Button>
+        {canManageSprints && (
+          <Button onClick={() => setOpen(true)}>
+            <Plus size={16} /> New sprint
+          </Button>
+        )}
       </div>
 
       {loading && sprints.length === 0 ? (
@@ -175,16 +207,27 @@ export default function Sprints() {
                   </div>
                 </div>
 
-                <div className="mt-4 flex gap-2">
-                  {s.status === "planned" && (
-                    <Button size="sm" onClick={() => handleStart(s)}>
-                      <Play size={14} /> Start
-                    </Button>
-                  )}
-                  {s.status === "active" && (
-                    <Button size="sm" variant="outline" onClick={() => handleComplete(s)}>
-                      <Check size={14} /> Complete
-                    </Button>
+                <div className="mt-4 flex gap-2 items-center justify-between">
+                  <div className="flex gap-2">
+                    {s.status === "planned" && canManageSprints && (
+                      <Button size="sm" onClick={() => handleStart(s)}>
+                        <Play size={14} /> Start
+                      </Button>
+                    )}
+                    {s.status === "active" && canManageSprints && (
+                      <Button size="sm" variant="outline" onClick={() => handleComplete(s)}>
+                        <Check size={14} /> Complete
+                      </Button>
+                    )}
+                  </div>
+                  {canManageSprints && (
+                    <button
+                      onClick={() => handleDelete(s)}
+                      className="p-1.5 rounded-md hover:bg-foreground/5 text-muted-foreground hover:text-red-500 transition-colors"
+                      title="Delete Sprint"
+                    >
+                      <Trash2 size={15} />
+                    </button>
                   )}
                 </div>
               </GlassCard>

@@ -1,6 +1,7 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import * as taskApi from "@/services/task.api";
 import * as commentApi from "@/services/comment.api";
+import { completeSprintAsync, deleteSprintAsync } from "./sprintsSlice";
 
 /* ─── Mapping Helper ────────────────────────────────────────────────── */
 
@@ -394,6 +395,29 @@ const slice = createSlice({
       .addCase(updateTaskDetailsAsync.fulfilled, replaceOnFulfilled)
       .addCase(deleteTaskAsync.fulfilled, (state, { payload: taskId }) => {
         state.tasks = state.tasks.filter((t) => t.id !== taskId && t._id !== taskId);
+      })
+      .addCase(completeSprintAsync.fulfilled, (state, { payload }) => {
+        const completedSprint = payload.data;
+        if (completedSprint) {
+          const sid = completedSprint._id || completedSprint.id;
+          state.tasks = state.tasks.map(t => {
+            if ((t.sprintId === sid || t.sprint === sid) && t.status !== "Done") {
+              return { ...t, sprintId: null, sprint: null };
+            }
+            return t;
+          });
+        }
+      })
+      .addCase(deleteSprintAsync.fulfilled, (state, { payload }) => {
+        const sid = payload.data?.sprintId;
+        if (sid) {
+          state.tasks = state.tasks.map(t => {
+            if (t.sprintId === sid || t.sprint === sid) {
+              return { ...t, sprintId: null, sprint: null };
+            }
+            return t;
+          });
+        }
       });
 
     /* fetchCommentsAsync */

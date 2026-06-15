@@ -7,7 +7,7 @@ import { createTaskAsync } from "@/store/slices/tasksSlice";
 import { push as pushNotif } from "@/store/slices/notificationsSlice";
 import { PRIORITIES, TASK_TYPES, STATUSES } from "@/store/seed";
 
-export default function CreateTaskModal({ open, onClose, projectId, defaultStatus = "Backlog" }) {
+export default function CreateTaskModal({ open, onClose, projectId, defaultStatus = "Backlog", defaultSprintId = undefined }) {
   const dispatch = useDispatch();
   const user = useSelector(s => s.auth.user);
   const projects = useSelector(s => s.projects.projects);
@@ -21,7 +21,9 @@ export default function CreateTaskModal({ open, onClose, projectId, defaultStatu
   const [status, setStatus] = useState(defaultStatus);
   const [assigneeId, setAssigneeId] = useState("");
   const [proj, setProj] = useState(projectId || projects[0]?.id || "");
-  const sprintForProj = sprints.find(s => s.projectId === proj && s.status === "active");
+  const [sprintId, setSprintId] = useState("");
+
+  const projectSprints = sprints.filter(s => s && s.projectId === proj);
   const selectedProject = projects.find(p => p.id === proj);
   const isDeveloper = selectedProject && selectedProject.memberRole === "DEVELOPER";
   const projectMembers = members.filter(m => selectedProject?.memberIds?.includes(m.id) || m.id === selectedProject?.createdBy);
@@ -36,15 +38,31 @@ export default function CreateTaskModal({ open, onClose, projectId, defaultStatu
       setPoints(3);
       setAssigneeId("");
       setProj(projectId || projects[0]?.id || "");
+
+      // Default to passed defaultSprintId, or active sprint of the selected project, or backlog
+      const activeSprint = sprints.find(s => s.projectId === (projectId || projects[0]?.id) && s.status === "active");
+      if (defaultSprintId !== undefined) {
+        setSprintId(defaultSprintId === "backlog" ? "" : defaultSprintId);
+      } else {
+        setSprintId(activeSprint?.id || "");
+      }
     }
-  }, [open, defaultStatus, projectId, projects]);
+  }, [open, defaultStatus, projectId, projects, defaultSprintId, sprints]);
+
+  // Sync sprint default when project dropdown is manually changed in the modal
+  useEffect(() => {
+    if (open && proj) {
+      const activeSprint = sprints.find(s => s.projectId === proj && s.status === "active");
+      setSprintId(activeSprint?.id || "");
+    }
+  }, [proj, open, sprints]);
 
   const submit = () => {
     if (!title.trim() || !proj) return;
     dispatch(createTaskAsync({
       title: title.trim(), description, type, priority,
       points: Number(points), status,
-      projectId: proj, sprintId: sprintForProj?.id || null,
+      projectId: proj, sprintId: sprintId || null,
       assigneeId: assigneeId || null, reporterId: user.id,
     }));
     if (assigneeId && assigneeId !== user.id) {
@@ -67,6 +85,15 @@ export default function CreateTaskModal({ open, onClose, projectId, defaultStatu
         <div className="grid grid-cols-2 gap-3">
           <div><Label>Project</Label><Select className="mt-1.5" value={proj} onChange={(e) => setProj(e.target.value)}>{projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</Select></div>
           <div>
+            <Label>Sprint</Label>
+            <Select className="mt-1.5" value={sprintId} onChange={(e) => setSprintId(e.target.value)}>
+              <option value="">Backlog / Unscheduled</option>
+              {projectSprints.map(s => (
+                <option key={s.id} value={s.id}>{s.name} ({s.status})</option>
+              ))}
+            </Select>
+          </div>
+          <div>
             <Label>Assignee</Label>
             <Select className="mt-1.5" value={assigneeId} onChange={(e) => setAssigneeId(e.target.value)}>
               <option value="">Unassigned</option>
@@ -83,7 +110,7 @@ export default function CreateTaskModal({ open, onClose, projectId, defaultStatu
               {PRIORITIES.map(p => <option key={p}>{p}</option>)}
             </Select>
           </div>
-          <div>
+          <div className="col-span-2">
             <Label>Story points</Label>
             <Input className="mt-1.5" type="number" disabled={isDeveloper} min={0} value={points} onChange={(e) => setPoints(e.target.value)} />
           </div>

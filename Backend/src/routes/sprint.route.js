@@ -18,4 +18,7 @@ router.patch("/:sprintId/start", protect, sprintIdRules, validate, sprintControl
 // Complete Sprint
 router.patch("/:sprintId/complete", protect, sprintIdRules, validate, sprintController.completeSprint);
 
+// Delete Sprint
+router.delete("/:sprintId", protect, sprintIdRules, validate, sprintController.deleteSprint);
+
 module.exports = router;

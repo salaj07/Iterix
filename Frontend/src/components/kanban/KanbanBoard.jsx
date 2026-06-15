@@ -12,13 +12,19 @@ import { Badge } from "@/components/common/Primitives";
 import { priorityTone, typeTone, formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-export default function KanbanBoard({ projectId = null, onCreateTask }) {
+export default function KanbanBoard({ projectId = null, sprintId = undefined, onCreateTask }) {
   const dispatch = useDispatch();
   const user = useSelector(s => s.auth.user);
   const allTasks = useSelector(s => s.tasks.tasks);
   const members = useSelector(s => s.org.members);
 
-  const visible = (projectId ? allTasks.filter(t => t.projectId === projectId) : allTasks).filter(t => !t.archived);
+  const visible = (projectId ? allTasks.filter(t => t.projectId === projectId) : allTasks)
+    .filter(t => !t.archived)
+    .filter(t => {
+      if (sprintId === undefined) return true;
+      if (sprintId === "backlog" || sprintId === null) return !t.sprintId;
+      return t.sprintId === sprintId;
+    });
   const tasks = visible;
   const grouped = STATUSES.reduce((acc, s) => { acc[s] = tasks.filter(t => t.status === s); return acc; }, {});
 

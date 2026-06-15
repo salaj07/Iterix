@@ -61,6 +61,7 @@ export default function TaskDetailModal({ taskId, onClose }) {
   const reporter = members.find(m => m.id === task.reporterId);
   const project = projects.find(p => p.id === task.projectId);
   const sprint = sprints.find(s => s.id === task.sprintId);
+  const projectSprints = (sprints || []).filter(s => s && s.projectId === task.projectId);
   const role = me?.role;
   const projectRole = project?.memberRole || "DEVELOPER";
   const isDeveloper = projectRole === "DEVELOPER";
@@ -252,7 +253,15 @@ export default function TaskDetailModal({ taskId, onClose }) {
                 }} />
             </Field>
             <Field label="Sprint">
-              <div className="text-sm">{sprint?.name || <span className="text-muted-foreground">Backlog</span>}</div>
+              <Select value={edited.sprintId !== undefined ? (edited.sprintId || "") : (task.sprintId || "")} onChange={(e) => {
+                const val = e.target.value || null;
+                setEdited(prev => ({ ...prev, sprintId: val }));
+              }}>
+                <option value="">Backlog / Unscheduled</option>
+                {projectSprints.map(s => (
+                  <option key={s.id} value={s.id}>{s.name} ({s.status})</option>
+                ))}
+              </Select>
             </Field>
             <Field label="Reporter">
               <div className="flex items-center gap-2 text-sm">

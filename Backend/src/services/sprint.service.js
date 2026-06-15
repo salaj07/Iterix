@@ -2,6 +2,7 @@ const Sprint = require("../models/sprint.model");
 const Project = require("../models/project.model");
 const ProjectMember = require("../models/projectMember.model");
 const WorkspaceMember = require("../models/workspaceMember.model");
+const Task = require("../models/task.model");
 
 /**
  * Create Sprint
@@ -208,6 +209,12 @@ const completeSprint = async (sprintId, currentUser) => {
   sprint.status = "COMPLETED";
   await sprint.save();
 
+  // Rollover incomplete tasks to backlog (set sprint = null)
+  await Task.updateMany(
+    { sprint: sprintId, status: { $ne: "Done" } },
+    { sprint: null }
+  );
+
   await notifyProjectMembers(
     sprint.project,
     "Sprint Completed",
@@ -216,6 +223,48 @@ const completeSprint = async (sprintId, currentUser) => {
   );
 
   return sprint;
+};
+
+/**
+ * Delete Sprint
+ */
+const deleteSprint = async (sprintId, currentUser) => {
+  const sprint = await Sprint.findById(sprintId);
+  if (!sprint) {
+    throw new Error("Sprint not found");
+  }
+
+  // Check TEAM_LEAD or Workspace ADMIN permission
+  const project = await Project.findById(sprint.project);
+  const isAdmin = project && await WorkspaceMember.findOne({
+    workspace: project.workspace,
+    user: currentUser._id,
+    role: "ADMIN",
+    isActive: true,
+  });
+
+  if (!isAdmin) {
+    const membership = await ProjectMember.findOne({
+      project: sprint.project,
+      user: currentUser._id,
+      role: "TEAM_LEAD",
+      isActive: true,
+    });
+
+    if (!membership) {
+      throw new Error("Only Project Leads can delete a sprint");
+    }
+  }
+
+  // Reset tasks assigned to this sprint to null
+  await Task.updateMany(
+    { sprint: sprintId },
+    { sprint: null }
+  );
+
+  // Delete the sprint
+  await Sprint.findByIdAndDelete(sprintId);
+  return { success: true, sprintId };
 };
 
 /**
@@ -246,4 +295,5 @@ module.exports = {
   getProjectSprints,
   startSprint,
   completeSprint,
+  deleteSprint,
 };
