@@ -1,7 +1,7 @@
 import { useSelector } from "react-redux";
 import { GlassCard } from "@/components/common/Primitives";
 import {
-  BarChart, Bar, LineChart, Line, AreaChart, Area,
+  BarChart, Bar, LineChart, Line, AreaChart, Area, ComposedChart,
   XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from "recharts";
 import { STATUSES } from "@/store/seed";
@@ -90,7 +90,7 @@ export default function Reports() {
 
         <Card title="Burn-down" subtitle="Ideal vs actual remaining work">
           <ResponsiveContainer width="100%" height={240}>
-            <AreaChart data={burndown}>
+            <ComposedChart data={burndown}>
               <defs>
                 <linearGradient id="grad1" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor={chartColor} stopOpacity={0.3}/>
@@ -103,7 +103,7 @@ export default function Reports() {
               <Tooltip contentStyle={tooltipStyle} />
               <Area type="monotone" dataKey="actual" stroke={chartColor} fill="url(#grad1)" strokeWidth={2} />
               <Line type="monotone" dataKey="ideal" stroke="currentColor" strokeDasharray="4 4" strokeOpacity={0.4} />
-            </AreaChart>
+            </ComposedChart>
           </ResponsiveContainer>
         </Card>
       </div>

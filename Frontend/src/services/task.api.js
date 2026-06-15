@@ -35,3 +35,7 @@ export const requestChanges = (taskId, note) =>
 /** Update task details */
 export const updateTaskDetails = (taskId, data) =>
   api.patch(`/api/tasks/${taskId}`, data);
+
+/** Delete a task */
+export const deleteTask = (taskId) =>
+  api.delete(`/api/tasks/${taskId}`);

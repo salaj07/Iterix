@@ -6,7 +6,7 @@ import Button from "@/components/common/Button";
 import { Input, Select, Badge, GlassCard } from "@/components/common/Primitives";
 import Avatar from "@/components/common/Avatar";
 import { openTask } from "@/store/slices/uiSlice";
-import { moveTask, deleteTask, updateTask, moveToSprintAsync, changeTaskStatusAsync } from "@/store/slices/tasksSlice";
+import { moveTask, deleteTaskAsync, updateTask, moveToSprintAsync, changeTaskStatusAsync } from "@/store/slices/tasksSlice";
 import { priorityTone, typeTone } from "@/lib/format";
 import { PRIORITIES, TASK_TYPES } from "@/store/seed";
 import { can, ACTIONS } from "@/lib/rbac";
@@ -136,7 +136,7 @@ export default function Backlog() {
                       </button>
                     )}
                     {can(role, ACTIONS.DELETE_TASK) && (
-                      <button onClick={() => dispatch(deleteTask(t.id))} title="Delete"
+                      <button onClick={() => dispatch(deleteTaskAsync(t.id))} title="Delete"
                         className="p-1.5 rounded-md hover:bg-foreground/5 text-muted-foreground hover:text-red-500">
                         <Trash2 size={15} />
                       </button>

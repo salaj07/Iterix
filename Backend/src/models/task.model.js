@@ -78,6 +78,36 @@ const taskSchema = new mongoose.Schema(
       required: true,
     },
 
+    history: [
+      {
+        at: {
+          type: Date,
+          default: Date.now,
+        },
+        by: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User",
+          required: true,
+        },
+        type: {
+          type: String,
+          required: true,
+          enum: [
+            "created",
+            "status_change",
+            "submitted_for_review",
+            "approved",
+            "rejected",
+            "archived",
+            "unarchived",
+          ],
+        },
+        from: String,
+        to: String,
+        note: String,
+      },
+    ],
+
     isArchived: {
       type: Boolean,
       default: false,

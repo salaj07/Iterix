@@ -1,6 +1,10 @@
 const { body, param } = require("express-validator");
 
-const VALID_ROLES = ["admin", "member", "viewer"];
+const VALID_ROLES = [
+  "admin", "member", "viewer",
+  "ADMIN", "MEMBER", "TEAM_LEAD", "DEVELOPER",
+  "team_lead", "developer"
+];
 
 /** POST /api/workspaces/:workspaceId/invite */
 const inviteMemberRules = [

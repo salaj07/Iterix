@@ -27,6 +27,12 @@ const mapTaskFromBackend = (t) => {
   else if (t.priority === "CRITICAL") priority = "Urgent";
   else priority = t.priority || "Medium";
 
+  const history = t.history ? t.history.map(h => ({
+    ...h,
+    at: typeof h.at === "number" ? h.at : new Date(h.at).getTime(),
+    by: typeof h.by === "object" ? (h.by._id || h.by.id) : h.by
+  })) : [];
+
   return {
     ...t,
     id: t.id || t._id,
@@ -38,6 +44,7 @@ const mapTaskFromBackend = (t) => {
     archived: t.archived !== undefined ? t.archived : t.isArchived,
     status,
     priority,
+    history,
   };
 };
 
@@ -143,6 +150,19 @@ export const updateTaskDetailsAsync = createAsyncThunk(
       return res.data;
     } catch (err) {
       return rejectWithValue(err.response?.data || { message: "Failed to update task details" });
+    }
+  }
+);
+
+/** Delete a task */
+export const deleteTaskAsync = createAsyncThunk(
+  "tasks/delete",
+  async (taskId, { rejectWithValue }) => {
+    try {
+      await taskApi.deleteTask(taskId);
+      return taskId;
+    } catch (err) {
+      return rejectWithValue(err.response?.data || { message: "Failed to delete task" });
     }
   }
 );
@@ -371,7 +391,10 @@ const slice = createSlice({
       .addCase(approveTaskAsync.fulfilled, replaceOnFulfilled)
       .addCase(requestChangesAsync.fulfilled, replaceOnFulfilled)
       .addCase(moveToSprintAsync.fulfilled, replaceOnFulfilled)
-      .addCase(updateTaskDetailsAsync.fulfilled, replaceOnFulfilled);
+      .addCase(updateTaskDetailsAsync.fulfilled, replaceOnFulfilled)
+      .addCase(deleteTaskAsync.fulfilled, (state, { payload: taskId }) => {
+        state.tasks = state.tasks.filter((t) => t.id !== taskId && t._id !== taskId);
+      });
 
     /* fetchCommentsAsync */
     builder.addCase(fetchCommentsAsync.fulfilled, (state, { payload }) => {

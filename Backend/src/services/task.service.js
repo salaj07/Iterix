@@ -2,8 +2,18 @@ const Task = require("../models/task.model");
 const Project = require("../models/project.model");
 const Sprint = require("../models/sprint.model");
 const ProjectMember = require("../models/projectMember.model");
+const WorkspaceMember = require("../models/workspaceMember.model");
+const Comment = require("../models/comment.model");
 
 /* ─── Mapping Helpers ────────────────────────────────────────────────── */
+
+const mapStatusToFrontend = (status) => {
+  if (status === "TODO") return "Todo";
+  if (status === "IN_PROGRESS") return "In Progress";
+  if (status === "IN_REVIEW") return "In Review";
+  if (status === "DONE") return "Done";
+  return status;
+};
 
 const mapTaskToFrontend = (task) => {
   if (!task) return null;
@@ -130,6 +140,13 @@ const createTask = async (data, currentUser) => {
     ...mappedData,
     taskCode,
     createdBy: currentUser._id,
+    history: [
+      {
+        at: new Date(),
+        by: currentUser._id,
+        type: "created",
+      },
+    ],
   });
 
   return mapTaskToFrontend(task);
@@ -305,6 +322,18 @@ const changeTaskStatus = async (taskId, status, currentUser) => {
     }
   }
 
+  if (task.status !== dbStatus || task.workflowStage !== dbWorkflowStage) {
+    const fromStatus = task.workflowStage === "BACKLOG" ? "Backlog" : mapStatusToFrontend(task.status);
+    const toStatus = dbWorkflowStage === "BACKLOG" ? "Backlog" : mapStatusToFrontend(dbStatus);
+    task.history.push({
+      at: new Date(),
+      by: currentUser._id,
+      type: "status_change",
+      from: fromStatus,
+      to: toStatus,
+    });
+  }
+
   task.status = dbStatus;
   task.workflowStage = dbWorkflowStage;
   await task.save();
@@ -336,13 +365,18 @@ const approveTask = async (taskId, currentUser) => {
     throw new Error("Only tasks in review can be approved");
   }
 
+  task.history.push({
+    at: new Date(),
+    by: currentUser._id,
+    type: "approved",
+  });
   task.status = "DONE";
   await task.save();
 
   return mapTaskToFrontend(task);
 };
 
-const requestChanges = async (taskId, currentUser) => {
+const requestChanges = async (taskId, note, currentUser) => {
   const task = await Task.findById(taskId);
 
   if (!task) {
@@ -366,8 +400,16 @@ const requestChanges = async (taskId, currentUser) => {
     throw new Error("Only tasks in review can be sent back");
   }
 
+  task.history.push({
+    at: new Date(),
+    by: currentUser._id,
+    type: "rejected",
+    note: note || "",
+  });
   task.status = "IN_PROGRESS";
   await task.save();
+
+  return mapTaskToFrontend(task);
 
   return mapTaskToFrontend(task);
 };
@@ -432,6 +474,13 @@ const updateTask = async (taskId, updateData, currentUser) => {
   }
 
   if (updateData.archived !== undefined) {
+    if (task.isArchived !== !!updateData.archived) {
+      task.history.push({
+        at: new Date(),
+        by: currentUser._id,
+        type: updateData.archived ? "archived" : "unarchived",
+      });
+    }
     task.isArchived = !!updateData.archived;
   }
 
@@ -475,12 +524,61 @@ const updateTask = async (taskId, updateData, currentUser) => {
     } else {
       dbStatus = status;
     }
+    if (task.status !== dbStatus || task.workflowStage !== dbWorkflowStage) {
+      const fromStatus = task.workflowStage === "BACKLOG" ? "Backlog" : mapStatusToFrontend(task.status);
+      const toStatus = dbWorkflowStage === "BACKLOG" ? "Backlog" : mapStatusToFrontend(dbStatus);
+      task.history.push({
+        at: new Date(),
+        by: currentUser._id,
+        type: "status_change",
+        from: fromStatus,
+        to: toStatus,
+      });
+    }
     task.status = dbStatus;
     task.workflowStage = dbWorkflowStage;
   }
 
   await task.save();
   return mapTaskToFrontend(task);
+};
+
+/**
+ * Delete Task
+ */
+const deleteTask = async (taskId, currentUser) => {
+  const task = await Task.findById(taskId);
+
+  if (!task) {
+    throw new Error("Task not found");
+  }
+
+  const project = await Project.findById(task.project);
+  if (!project) {
+    throw new Error("Project not found");
+  }
+
+  const isWorkspaceAdmin = await WorkspaceMember.findOne({
+    workspace: project.workspace,
+    user: currentUser._id,
+    role: "ADMIN",
+    isActive: true,
+  });
+
+  const isProjectLead = await ProjectMember.findOne({
+    project: task.project,
+    user: currentUser._id,
+    role: "TEAM_LEAD",
+    isActive: true,
+  });
+
+  if (!isWorkspaceAdmin && !isProjectLead) {
+    throw new Error("Only TEAM_LEAD or Workspace ADMIN can delete tasks");
+  }
+
+  await Task.findByIdAndDelete(taskId);
+  await Comment.deleteMany({ task: taskId });
+  return { id: taskId };
 };
 
 module.exports = {
@@ -492,4 +590,5 @@ module.exports = {
   approveTask,
   requestChanges,
   updateTask,
+  deleteTask,
 };

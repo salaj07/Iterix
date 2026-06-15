@@ -10,9 +10,9 @@ import { Badge, Textarea, Input, Select } from "@/components/common/Primitives";
 import { priorityTone, typeTone, formatRelative, formatDate } from "@/lib/format";
 import {
   updateTask, addComment, addSubtask, toggleSubtask, moveTask,
-  submitForReview, approveTask, rejectTask, deleteTask,
+  submitForReview, approveTask, rejectTask,
   changeTaskStatusAsync, assignTaskAsync, approveTaskAsync, requestChangesAsync,
-  updateTaskDetailsAsync, fetchCommentsAsync, addCommentAsync,
+  updateTaskDetailsAsync, fetchCommentsAsync, addCommentAsync, deleteTaskAsync,
 } from "@/store/slices/tasksSlice";
 import { push as pushNotif } from "@/store/slices/notificationsSlice";
 import { PRIORITIES, ROLES } from "@/store/seed";
@@ -311,7 +311,7 @@ export default function TaskDetailModal({ taskId, onClose }) {
               </Button>
             )}
             {canDelete && (
-              <Button variant="ghost" className="w-full text-red-500" onClick={() => { dispatch(deleteTask(task.id)); onClose(); }}>Delete task</Button>
+              <Button variant="ghost" className="w-full text-red-500" onClick={() => { dispatch(deleteTaskAsync(task.id)); onClose(); }}>Delete task</Button>
             )}
           </div>
         </div>

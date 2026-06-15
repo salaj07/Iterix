@@ -105,3 +105,18 @@ describe("PATCH /api/tasks/:taskId/assign", () => {
     expect([401, 422]).toContain(res.statusCode);
   });
 });
+
+/* ─── DELETE /api/tasks/:taskId ───────────────────────────────────────── */
+describe("DELETE /api/tasks/:taskId", () => {
+  it("should return 401 when not authenticated", async () => {
+    const res = await request(app)
+      .delete(`/api/tasks/${FAKE_TASK_ID}`);
+    expect(res.statusCode).toBe(401);
+  });
+
+  it("should return 422 or 401 when taskId is not a MongoId", async () => {
+    const res = await request(app)
+      .delete("/api/tasks/not-mongo");
+    expect([401, 422]).toContain(res.statusCode);
+  });
+});

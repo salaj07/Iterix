@@ -131,6 +131,7 @@ const requestChanges = async (req, res, next) => {
   try {
     const task = await taskService.requestChanges(
       req.params.taskId,
+      req.body.note,
       req.user
     );
 
@@ -158,6 +159,24 @@ const updateTask = async (req, res, next) => {
   }
 };
 
+/**
+ * Delete Task
+ */
+const deleteTask = async (req, res, next) => {
+  try {
+    const { taskId } = req.params;
+    const result = await taskService.deleteTask(taskId, req.user);
+
+    return res.status(200).json({
+      success: true,
+      message: "Task deleted successfully",
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   createTask,
   getProjectTasks,
@@ -167,4 +186,5 @@ module.exports = {
   requestChanges,
   approveTask,
   updateTask,
+  deleteTask,
 };

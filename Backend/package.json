@@ -12,7 +12,9 @@
     "testEnvironment": "node",
     "globalSetup": "./__tests__/setup.js",
     "globalTeardown": "./__tests__/teardown.js",
-    "testMatch": ["**/__tests__/**/*.test.js"],
+    "testMatch": [
+      "**/__tests__/**/*.test.js"
+    ],
     "testTimeout": 30000
   },
   "keywords": [],
@@ -36,6 +38,7 @@
   },
   "devDependencies": {
     "jest": "^29.7.0",
+    "mongodb-memory-server": "^11.2.0",
     "supertest": "^7.1.0"
   }
 }
