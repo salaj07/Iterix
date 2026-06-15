@@ -1,5 +1,6 @@
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
+import { useSelector } from "react-redux";
 import {
   Sparkles,
   ArrowRight,
@@ -65,6 +66,7 @@ const testimonials = [
 
 export default function Landing() {
   const navigate = useNavigate();
+  const isAuthenticated = useSelector((s) => s.auth.isAuthenticated);
   return (
     <div className="min-h-screen flex flex-col">
       {/* Nav */}
@@ -88,12 +90,20 @@ export default function Landing() {
             </a>
           </nav>
           <div className="ml-auto flex items-center gap-2">
-            <Button variant="ghost" onClick={() => navigate("/login")}>
-              Sign in
-            </Button>
-            <Button onClick={() => navigate("/login")}>
-              Get started <ArrowRight size={15} />
-            </Button>
+            {isAuthenticated ? (
+              <Button onClick={() => navigate("/app/dashboard")}>
+                Go to Dashboard <ArrowRight size={15} />
+              </Button>
+            ) : (
+              <>
+                <Button variant="ghost" onClick={() => navigate("/login")}>
+                  Sign in
+                </Button>
+                <Button onClick={() => navigate("/login")}>
+                  Get started <ArrowRight size={15} />
+                </Button>
+              </>
+            )}
           </div>
         </div>
       </header>
@@ -135,9 +145,15 @@ export default function Landing() {
                 transition={{ duration: 0.5, delay: 0.15 }}
                 className="mt-8 flex flex-wrap items-center gap-3"
               >
-                <Button size="lg" onClick={() => navigate("/login")}>
-                  Start free <ArrowRight size={16} />
-                </Button>
+                {isAuthenticated ? (
+                  <Button size="lg" onClick={() => navigate("/app/dashboard")}>
+                    Go to Dashboard <ArrowRight size={16} />
+                  </Button>
+                ) : (
+                  <Button size="lg" onClick={() => navigate("/login")}>
+                    Start free <ArrowRight size={16} />
+                  </Button>
+                )}
                 <Button
                   size="lg"
                   variant="outline"
@@ -271,9 +287,15 @@ export default function Landing() {
               Set up your first workspace in under a minute.
             </p>
             <div className="mt-8">
-              <Button size="lg" onClick={() => navigate("/login")}>
-                Create your workspace <ArrowRight size={16} />
-              </Button>
+              {isAuthenticated ? (
+                <Button size="lg" onClick={() => navigate("/app/dashboard")}>
+                  Go to Dashboard <ArrowRight size={16} />
+                </Button>
+              ) : (
+                <Button size="lg" onClick={() => navigate("/login")}>
+                  Create your workspace <ArrowRight size={16} />
+                </Button>
+              )}
             </div>
           </div>
         </section>

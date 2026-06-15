@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -16,6 +16,14 @@ const emailSchema = z.string().email("Please enter a valid email");
 export default function Login() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const isAuthenticated = useSelector((s) => s.auth.isAuthenticated);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate("/app/dashboard", { replace: true });
+    }
+  }, [isAuthenticated, navigate]);
+
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");

@@ -23,7 +23,15 @@ export default function Onboarding() {
     if (!user) return;
     const init = async () => {
       try {
-        await dispatch(fetchMyInvitations()).unwrap();
+        const [invRes, wsRes] = await Promise.all([
+          dispatch(fetchMyInvitations()).unwrap(),
+          dispatch(fetchWorkspaces()).unwrap(),
+        ]);
+        const invites = invRes.data || [];
+        const list = wsRes.data || [];
+        if (list.length > 0 && invites.length === 0) {
+          navigate("/app/dashboard", { replace: true });
+        }
       } catch (e) {
         console.error(e);
       } finally {
@@ -31,7 +39,7 @@ export default function Onboarding() {
       }
     };
     init();
-  }, [dispatch, user]);
+  }, [dispatch, user, navigate]);
 
   if (!user) {
     return <Navigate to="/login" replace />;

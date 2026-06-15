@@ -1,4 +1,4 @@
-import { Outlet, useLocation } from "react-router-dom";
+import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { AnimatePresence, motion } from "framer-motion";
 import { useState, useEffect } from "react";
@@ -17,6 +17,7 @@ import { fetchNotifications } from "@/store/slices/notificationsSlice";
 
 export default function AppShell() {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const sidebarCollapsed = useSelector(s => s.ui.sidebarCollapsed);
   const taskId = useSelector(s => s.ui.taskModalId);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -24,12 +25,22 @@ export default function AppShell() {
 
   const currentWorkspaceId = useSelector(s => s.workspace.currentWorkspaceId);
   const projects = useSelector(s => s.projects.projects);
+  const workspaces = useSelector(s => s.workspace.workspaces);
+  const loadingWorkspaces = useSelector(s => s.workspace.loading);
+  const [hasFetchedWorkspaces, setHasFetchedWorkspaces] = useState(false);
 
   // 1. Fetch workspaces and notifications on mount
   useEffect(() => {
-    dispatch(fetchWorkspaces());
+    dispatch(fetchWorkspaces()).finally(() => setHasFetchedWorkspaces(true));
     dispatch(fetchNotifications());
   }, [dispatch]);
+
+  // Redirect to onboarding if the user has no workspaces
+  useEffect(() => {
+    if (hasFetchedWorkspaces && !loadingWorkspaces && workspaces.length === 0) {
+      navigate("/onboarding", { replace: true });
+    }
+  }, [hasFetchedWorkspaces, loadingWorkspaces, workspaces.length, navigate]);
 
   // 2. Fetch projects and workspace members whenever selected workspace changes
   useEffect(() => {

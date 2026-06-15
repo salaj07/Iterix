@@ -1,5 +1,7 @@
+import { useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { Link, useNavigate } from "react-router-dom";
+import { fetchMyInvitations } from "@/store/slices/orgSlice";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import {
@@ -29,8 +31,13 @@ export default function Dashboard() {
   const tasks = allTasks.filter(t => projectIds.includes(t.projectId));
 
   const workspaces = useSelector(s => s.workspace.workspaces);
+  const myInvitations = useSelector(s => s.org.myInvitations || []);
   const dispatch = useDispatch();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    dispatch(fetchMyInvitations());
+  }, [dispatch]);
 
   const myTasks = tasks.filter(t => t.assigneeId === user?.id);
   const activeSprints = sprints.filter(s => s.status === "active");
@@ -58,7 +65,19 @@ export default function Dashboard() {
         <QuickAction icon={Plus} title="Create Workspace" desc="Spin up a new home for your team." onClick={() => navigate("/onboarding")} accent />
         <QuickAction icon={UserPlus} title="Join Workspace" desc="Use an invite code to join an existing team." onClick={() => toast.info("Ask your admin to send you an invite link.")} />
         <QuickAction icon={Boxes} title="Browse Workspaces" desc={hasWorkspace ? `${workspaces.length} workspace${workspaces.length>1?"s":""} available` : "You have no workspaces yet"} onClick={() => navigate("/app/workspaces")} />
-        <QuickAction icon={Mail} title="Invitations" desc="No pending invitations" onClick={() => toast.info("No pending invitations.")} />
+        <QuickAction
+          icon={Mail}
+          title="Invitations"
+          desc={myInvitations.length > 0 ? `${myInvitations.length} pending invitation${myInvitations.length > 1 ? "s" : ""}` : "No pending invitations"}
+          onClick={() => {
+            if (myInvitations.length > 0) {
+              navigate("/onboarding");
+            } else {
+              toast.info("No pending invitations.");
+            }
+          }}
+          accent={myInvitations.length > 0}
+        />
       </div>
 
 
