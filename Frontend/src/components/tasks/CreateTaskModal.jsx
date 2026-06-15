@@ -24,6 +24,7 @@ export default function CreateTaskModal({ open, onClose, projectId, defaultStatu
   const sprintForProj = sprints.find(s => s.projectId === proj && s.status === "active");
   const selectedProject = projects.find(p => p.id === proj);
   const isDeveloper = selectedProject && selectedProject.memberRole === "DEVELOPER";
+  const projectMembers = members.filter(m => selectedProject?.memberIds?.includes(m.id) || m.id === selectedProject?.createdBy);
 
   useEffect(() => {
     if (open) {
@@ -72,7 +73,7 @@ export default function CreateTaskModal({ open, onClose, projectId, defaultStatu
               {isDeveloper ? (
                 <option value={user?.id}>{user?.name} (You)</option>
               ) : (
-                members.map(m => <option key={m.id} value={m.id}>{m.name}</option>)
+                projectMembers.map(m => <option key={m.id} value={m.id}>{m.name}</option>)
               )}
             </Select>
           </div>

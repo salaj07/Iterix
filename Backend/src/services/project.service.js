@@ -297,6 +297,118 @@ const getProjectDashboard = async (projectId, currentUser) => {
   };
 };
 
+const checkIsLeadOrAdmin = async (projectId, currentUser) => {
+  const project = await Project.findById(projectId);
+  if (!project) throw new Error("Project not found");
+
+  const isAdmin = await WorkspaceMember.findOne({
+    workspace: project.workspace,
+    user: currentUser._id,
+    role: "ADMIN",
+    isActive: true,
+  });
+
+  if (isAdmin) return true;
+
+  const isLead = await ProjectMember.findOne({
+    project: projectId,
+    user: currentUser._id,
+    role: "TEAM_LEAD",
+    isActive: true,
+  });
+
+  if (isLead) return true;
+
+  throw new Error("Only Project Leads or Workspace Admins can manage project members");
+};
+
+const addProjectMember = async (projectId, userId, role, currentUser) => {
+  await checkIsLeadOrAdmin(projectId, currentUser);
+
+  // Check if user is active workspace member
+  const project = await Project.findById(projectId);
+  const isWorkspaceMember = await WorkspaceMember.findOne({
+    workspace: project.workspace,
+    user: userId,
+    isActive: true,
+  });
+
+  if (!isWorkspaceMember) {
+    throw new Error("User must be an active member of this workspace to be added to a project");
+  }
+
+  // Check if they are already in the project (even soft-deleted)
+  const existing = await ProjectMember.findOne({ project: projectId, user: userId });
+  if (existing) {
+    existing.isActive = true;
+    existing.role = role || existing.role;
+    await existing.save();
+    return existing;
+  }
+
+  const newMember = await ProjectMember.create({
+    project: projectId,
+    user: userId,
+    role,
+  });
+
+  return newMember;
+};
+
+const removeProjectMember = async (projectId, userId, currentUser) => {
+  await checkIsLeadOrAdmin(projectId, currentUser);
+
+  const member = await ProjectMember.findOne({ project: projectId, user: userId, isActive: true });
+  if (!member) {
+    throw new Error("Project member not found or already inactive");
+  }
+
+  // Ensure we don't leave the project with zero active TEAM_LEADs
+  if (member.role === "TEAM_LEAD") {
+    const activeLeadsCount = await ProjectMember.countDocuments({
+      project: projectId,
+      role: "TEAM_LEAD",
+      isActive: true,
+    });
+    if (activeLeadsCount <= 1) {
+      throw new Error("Cannot remove the last active Team Lead from the project");
+    }
+  }
+
+  member.isActive = false;
+  await member.save();
+  return member;
+};
+
+const updateProjectMemberRole = async (projectId, userId, role, currentUser) => {
+  await checkIsLeadOrAdmin(projectId, currentUser);
+
+  if (!["TEAM_LEAD", "DEVELOPER"].includes(role)) {
+    throw new Error("Invalid project role. Must be TEAM_LEAD or DEVELOPER");
+  }
+
+  const member = await ProjectMember.findOne({ project: projectId, user: userId, isActive: true });
+  if (!member) {
+    throw new Error("Project member not found");
+  }
+
+  // Ensure we don't leave the project with zero active TEAM_LEADs if they are demoted
+  if (member.role === "TEAM_LEAD" && role === "DEVELOPER") {
+    const activeLeadsCount = await ProjectMember.countDocuments({
+      project: projectId,
+      role: "TEAM_LEAD",
+      isActive: true,
+    });
+    if (activeLeadsCount <= 1) {
+      throw new Error("Cannot demote the last active Team Lead from the project");
+    }
+  }
+
+  member.role = role;
+  await member.save();
+  return member;
+};
+
 module.exports = {
   createProject,
   getUserProjects,
@@ -304,4 +416,7 @@ module.exports = {
   archiveProject,
   getProjectMembers,
   getProjectDashboard,
+  addProjectMember,
+  removeProjectMember,
+  updateProjectMemberRole,
 };

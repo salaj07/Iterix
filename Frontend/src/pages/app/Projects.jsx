@@ -16,6 +16,9 @@ export default function Projects() {
   const user = useSelector((s) => s.auth.user);
   const { projects, loading } = useSelector((s) => s.projects);
   const currentWorkspaceId = useSelector((s) => s.workspace.currentWorkspaceId);
+  const workspaces = useSelector((s) => s.workspace.workspaces);
+  const currentWs = workspaces.find((w) => w.id === currentWorkspaceId || w._id === currentWorkspaceId);
+  const isWorkspaceAdmin = currentWs?.role === "ADMIN";
   const [open, setOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [form, setForm] = useState({ name: "", key: "", description: "" });
@@ -66,7 +69,7 @@ export default function Projects() {
           <h1 className="font-display text-3xl font-bold">Projects</h1>
           <p className="text-sm text-muted-foreground mt-1">All projects across your workspace.</p>
         </div>
-        <Button onClick={() => setOpen(true)}><Plus size={16} /> New project</Button>
+        {isWorkspaceAdmin && <Button onClick={() => setOpen(true)}><Plus size={16} /> New project</Button>}
       </div>
 
       {loading && filteredProjects.length === 0 ? (
@@ -80,7 +83,7 @@ export default function Projects() {
           </div>
           <h3 className="font-display font-semibold text-lg">No projects yet</h3>
           <p className="text-sm text-muted-foreground mt-1">Create your first project to start shipping.</p>
-          <div className="mt-5"><Button onClick={() => setOpen(true)}><Plus size={16} /> Create project</Button></div>
+          {isWorkspaceAdmin && <div className="mt-5"><Button onClick={() => setOpen(true)}><Plus size={16} /> Create project</Button></div>}
         </GlassCard>
       ) : (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">

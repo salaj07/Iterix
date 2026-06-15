@@ -9,7 +9,7 @@ import { closeTask } from "@/store/slices/uiSlice";
 
 // Async thunks for data loading
 import { fetchWorkspaces } from "@/store/slices/workspaceSlice";
-import { fetchProjects } from "@/store/slices/projectsSlice";
+import { fetchProjects, fetchProjectMembers } from "@/store/slices/projectsSlice";
 import { fetchMembers } from "@/store/slices/orgSlice";
 import { fetchProjectTasks } from "@/store/slices/tasksSlice";
 import { fetchSprints } from "@/store/slices/sprintsSlice";
@@ -24,8 +24,9 @@ export default function AppShell() {
   const location = useLocation();
 
   const currentWorkspaceId = useSelector(s => s.workspace.currentWorkspaceId);
-  const projects = useSelector(s => s.projects.projects);
-  const workspaces = useSelector(s => s.workspace.workspaces);
+  const currentProjectId = useSelector(s => s.projects.currentProjectId);
+  const projects = useSelector(s => s.projects.projects) || [];
+  const workspaces = useSelector(s => s.workspace.workspaces) || [];
   const loadingWorkspaces = useSelector(s => s.workspace.loading);
   const [hasFetchedWorkspaces, setHasFetchedWorkspaces] = useState(false);
 
@@ -37,7 +38,7 @@ export default function AppShell() {
 
   // Redirect to onboarding if the user has no workspaces
   useEffect(() => {
-    if (hasFetchedWorkspaces && !loadingWorkspaces && workspaces.length === 0) {
+    if (hasFetchedWorkspaces && !loadingWorkspaces && (workspaces || []).length === 0) {
       navigate("/onboarding", { replace: true });
     }
   }, [hasFetchedWorkspaces, loadingWorkspaces, workspaces.length, navigate]);
@@ -51,10 +52,11 @@ export default function AppShell() {
   }, [dispatch, currentWorkspaceId]);
 
   // 3. Fetch project tasks and sprints when the list of projects changes
-  const projectIdsStr = projects.map(p => p.id || p._id).join(",");
+  const projectIdsStr = (projects || []).map(p => p ? (p.id || p._id) : "").join(",");
   useEffect(() => {
-    if (projects.length > 0) {
+    if ((projects || []).length > 0) {
       projects.forEach(p => {
+        if (!p) return;
         const pid = p.id || p._id;
         if (pid) {
           dispatch(fetchProjectTasks(pid));
@@ -63,6 +65,13 @@ export default function AppShell() {
       });
     }
   }, [dispatch, projectIdsStr]);
+
+  // 4. Fetch project members when currentProjectId changes
+  useEffect(() => {
+    if (currentProjectId) {
+      dispatch(fetchProjectMembers(currentProjectId));
+    }
+  }, [dispatch, currentProjectId]);
 
   return (
     <div className="min-h-screen flex w-full bg-background text-foreground overflow-hidden">

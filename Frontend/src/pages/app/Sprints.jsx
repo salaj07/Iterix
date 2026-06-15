@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { toast } from "sonner";
-import { Plus, Play, Check, Calendar, Loader2 } from "lucide-react";
-import { GlassCard, Badge, Input, Label, Select, Textarea } from "@/components/common/Primitives";
+import { Plus, Play, Check, Calendar, Loader2, FolderKanban } from "lucide-react";
+import { GlassCard, Badge, Input, Label, Textarea } from "@/components/common/Primitives";
 import Button from "@/components/common/Button";
 import Modal from "@/components/common/Modal";
 import { formatDate } from "@/lib/format";
@@ -11,43 +11,37 @@ import { fetchSprints, createSprintAsync, startSprintAsync, completeSprintAsync 
 export default function Sprints() {
   const dispatch = useDispatch();
   const currentWorkspaceId = useSelector((s) => s.workspace.currentWorkspaceId);
-  const allProjects = useSelector((s) => s.projects.projects);
-  const projects = allProjects.filter((p) => (p.workspace || p.workspaceId) === currentWorkspaceId);
+  const currentProjectId = useSelector((s) => s.projects.currentProjectId);
+  const allProjects = useSelector((s) => s.projects.projects) || [];
+  const projects = allProjects.filter((p) => p && (p.workspace === currentWorkspaceId || p.workspaceId === currentWorkspaceId));
+  const currentProject = projects.find(p => p && (p.id === currentProjectId || p._id === currentProjectId));
 
   const { sprints: allSprints, loading } = useSelector((s) => s.sprints);
-  const projectIds = projects.map((p) => p.id || p._id);
-  const sprints = allSprints
-    .filter((s) => projectIds.includes(s.projectId))
+  const sprints = (allSprints || [])
+    .filter((s) => s && s.projectId === currentProjectId)
     .sort((a, b) => new Date(b.createdAt || b.startDate || 0) - new Date(a.createdAt || a.startDate || 0));
 
-  const allTasks = useSelector((s) => s.tasks.tasks);
-  const tasks = allTasks.filter((t) => projectIds.includes(t.projectId));
+  const allTasks = useSelector((s) => s.tasks.tasks) || [];
+  const tasks = allTasks.filter((t) => t && t.projectId === currentProjectId);
 
   const [open, setOpen] = useState(false);
   const [creating, setCreating] = useState(false);
-  const firstProjectId = projects[0]?._id || projects[0]?.id || "";
   const [form, setForm] = useState({
-    projectId: "",
     name: "",
     goal: "",
     startDate: "",
     endDate: "",
   });
 
-  // When projects load or switch workspace, update the default projectId in the form
+  // Fetch sprints for the selected project when it changes
   useEffect(() => {
-    setForm((f) => ({ ...f, projectId: firstProjectId }));
-  }, [firstProjectId]);
-
-  // Fetch sprints for the first project of the workspace on mount or workspace change
-  useEffect(() => {
-    if (firstProjectId) {
-      dispatch(fetchSprints(firstProjectId));
+    if (currentProjectId) {
+      dispatch(fetchSprints(currentProjectId));
     }
-  }, [dispatch, firstProjectId]);
+  }, [dispatch, currentProjectId]);
 
   const create = async () => {
-    if (!form.name.trim() || !form.projectId) return;
+    if (!form.name.trim() || !currentProjectId) return;
     if (!form.startDate || !form.endDate) {
       toast.error("Please set start and end dates");
       return;
@@ -55,7 +49,7 @@ export default function Sprints() {
     setCreating(true);
     const result = await dispatch(
       createSprintAsync({
-        projectId: form.projectId,
+        projectId: currentProjectId,
         name: form.name.trim(),
         goal: form.goal,
         startDate: new Date(form.startDate).toISOString(),
@@ -64,7 +58,7 @@ export default function Sprints() {
     );
     if (createSprintAsync.fulfilled.match(result)) {
       toast.success("Sprint created");
-      setForm({ projectId: firstProjectId, name: "", goal: "", startDate: "", endDate: "" });
+      setForm({ name: "", goal: "", startDate: "", endDate: "" });
       setOpen(false);
     } else {
       const errors = result.payload?.errors;
@@ -93,14 +87,40 @@ export default function Sprints() {
     }
   };
 
+  if (!currentWorkspaceId) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center">
+        <h2 className="font-display text-2xl font-bold">No workspace selected</h2>
+        <p className="text-sm text-muted-foreground mt-2">Please select or create a workspace to view sprints.</p>
+      </div>
+    );
+  }
+
+  if (!currentProjectId) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center glass rounded-2xl">
+        <div className="w-16 h-16 rounded-2xl bg-[color:var(--primary)]/10 text-[color:var(--primary)] flex items-center justify-center mb-6">
+          <FolderKanban size={28} />
+        </div>
+        <h2 className="font-display text-2xl font-bold">No project selected</h2>
+        <p className="text-sm text-muted-foreground mt-2 max-w-sm">
+          Please select a project from the workspace menu in the left pane to view its sprints.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-end justify-between flex-wrap gap-4">
         <div>
-          <h1 className="font-display text-3xl font-bold">Sprints</h1>
-          <p className="text-sm text-muted-foreground mt-1">Plan and run iterations across projects.</p>
+          <div className="text-xs text-muted-foreground tracking-wider uppercase font-semibold">
+            Project: {currentProject?.projectKey} · {currentProject?.name}
+          </div>
+          <h1 className="font-display text-3xl font-bold mt-1">Sprints</h1>
+          <p className="text-sm text-muted-foreground mt-1">Plan and run iterations for this project.</p>
         </div>
-        <Button onClick={() => setOpen(true)} disabled={!projects.length}>
+        <Button onClick={() => setOpen(true)}>
           <Plus size={16} /> New sprint
         </Button>
       </div>
@@ -117,7 +137,6 @@ export default function Sprints() {
         <div className="grid lg:grid-cols-2 gap-4">
           {sprints.map((s) => {
             const id = s._id || s.id;
-            const proj = projects.find((p) => (p._id || p.id) === s.projectId);
             const sTasks = tasks.filter((t) => t.sprintId === id);
             const done = sTasks.filter((t) => t.status === "Done").length;
             const points = sTasks.reduce((a, t) => a + (t.points || 0), 0);
@@ -126,9 +145,6 @@ export default function Sprints() {
               <GlassCard key={id}>
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <div className="text-[11px] tracking-wider uppercase text-muted-foreground">
-                      {proj?.key} · {proj?.name}
-                    </div>
                     <h3 className="font-display font-bold text-lg mt-1">{s.name}</h3>
                     <p className="text-xs text-muted-foreground mt-1">{s.goal}</p>
                   </div>
@@ -184,7 +200,7 @@ export default function Sprints() {
         footer={
           <div className="flex justify-end gap-2">
             <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button onClick={create} disabled={!form.name.trim() || !form.projectId || creating}>
+            <Button onClick={create} disabled={!form.name.trim() || creating}>
               {creating ? <Loader2 className="animate-spin" size={14} /> : null}
               Create
             </Button>
@@ -194,14 +210,7 @@ export default function Sprints() {
         <div className="space-y-4">
           <div>
             <Label>Project</Label>
-            <Select className="mt-1.5" value={form.projectId} onChange={(e) => {
-              setForm({ ...form, projectId: e.target.value });
-              dispatch(fetchSprints(e.target.value));
-            }}>
-              {projects.map((p) => (
-                <option key={p._id || p.id} value={p._id || p.id}>{p.name}</option>
-              ))}
-            </Select>
+            <Input className="mt-1.5 bg-foreground/5 cursor-not-allowed" readOnly value={currentProject?.name || ""} />
           </div>
           <div>
             <Label>Sprint name</Label>

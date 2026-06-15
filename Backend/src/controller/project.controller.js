@@ -115,6 +115,70 @@ const getProjectDashboard = async (req, res, next) => {
   }
 };
 
+const addProjectMember = async (req, res, next) => {
+  try {
+    const { projectId } = req.params;
+    const { userId, role } = req.body;
+
+    const member = await projectService.addProjectMember(
+      projectId,
+      userId,
+      role,
+      req.user
+    );
+
+    return res.status(201).json({
+      success: true,
+      message: "Member added to project successfully",
+      data: member,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const removeProjectMember = async (req, res, next) => {
+  try {
+    const { projectId, userId } = req.params;
+
+    const member = await projectService.removeProjectMember(
+      projectId,
+      userId,
+      req.user
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: "Member removed from project successfully",
+      data: member,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const updateProjectMemberRole = async (req, res, next) => {
+  try {
+    const { projectId, userId } = req.params;
+    const { role } = req.body;
+
+    const member = await projectService.updateProjectMemberRole(
+      projectId,
+      userId,
+      role,
+      req.user
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: "Member project role updated successfully",
+      data: member,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   createProject,
   getUserProjects,
@@ -122,6 +186,7 @@ module.exports = {
   archiveProject,
   getProjectMembers,
   getProjectDashboard,
-  archiveProject,
-  getProjectMembers,
+  addProjectMember,
+  removeProjectMember,
+  updateProjectMemberRole,
 };

@@ -1,40 +1,49 @@
 import { useSelector } from "react-redux";
+import { Link } from "react-router-dom";
 import { GlassCard } from "@/components/common/Primitives";
+import Button from "@/components/common/Button";
 import {
   BarChart, Bar, LineChart, Line, AreaChart, Area, ComposedChart,
   XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from "recharts";
 import { STATUSES } from "@/store/seed";
+import { FolderKanban } from "lucide-react";
 
 const chartColor = "var(--primary)";
 const gridColor = "color-mix(in oklab, currentColor 8%, transparent)";
 
 export default function Reports() {
   const currentWorkspaceId = useSelector(s => s.workspace.currentWorkspaceId);
-  const allProjects = useSelector(s => s.projects.projects);
-  const projects = allProjects.filter(p => (p.workspace || p.workspaceId) === currentWorkspaceId);
-  const projectIds = projects.map(p => p.id || p._id);
+  const currentProjectId = useSelector(s => s.projects.currentProjectId);
+  const allProjects = useSelector(s => s.projects.projects) || [];
+  const projects = allProjects.filter(p => p && (p.workspace === currentWorkspaceId || p.workspaceId === currentWorkspaceId));
+  const currentProject = projects.find(p => p && (p.id === currentProjectId || p._id === currentProjectId));
 
-  const allTasks = useSelector(s => s.tasks.tasks);
-  const tasks = allTasks.filter(t => projectIds.includes(t.projectId));
+  const allTasks = useSelector(s => s.tasks.tasks) || [];
+  const tasks = allTasks.filter(t => t && t.projectId === currentProjectId);
 
-  const members = useSelector(s => s.org.members);
+  const members = useSelector(s => s.projects.projectMembers) || [];
 
-  const allSprints = useSelector(s => s.sprints.sprints);
-  const sprints = allSprints.filter(s => projectIds.includes(s.projectId));
+  const allSprints = useSelector(s => s.sprints.sprints) || [];
+  const sprints = allSprints.filter(s => s && s.projectId === currentProjectId);
 
   const velocity = sprints.map((s, i) => ({
     name: `S${i + 1}`,
-    points: tasks.filter(t => t.sprintId === s.id && t.status === "Done").reduce((a, t) => a + (t.points || 0), 0),
+    points: tasks.filter(t => t.sprintId === (s.id || s._id) && t.status === "Done").reduce((a, t) => a + (t.points || 0), 0),
   }));
   if (velocity.length === 0) velocity.push({ name: "S1", points: 0 });
 
   const statusBreakdown = STATUSES.map(s => ({ name: s, count: tasks.filter(t => t.status === s).length }));
 
-  const workload = members.map(m => ({
-    name: m.name.split(" ")[0],
-    open: tasks.filter(t => t.assigneeId === m.id && t.status !== "Done").length,
-  }));
+  const workload = members.map(m => {
+    const memberUser = m.user || m;
+    const memberId = memberUser._id || memberUser.id || m.id;
+    const memberName = memberUser.name || m.name || "Member";
+    return {
+      name: memberName.split(" ")[0],
+      open: tasks.filter(t => t.assigneeId === memberId && t.status !== "Done").length,
+    };
+  });
 
   // burndown — simple fake based on history
   const total = tasks.length || 1;
@@ -44,11 +53,37 @@ export default function Reports() {
     actual: Math.max(0, Math.round(total - (total / 8) * i - (Math.sin(i) * 0.5))),
   }));
 
+  if (!currentWorkspaceId) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center">
+        <h2 className="font-display text-2xl font-bold">No workspace selected</h2>
+        <p className="text-sm text-muted-foreground mt-2">Please select or create a workspace to view reports.</p>
+      </div>
+    );
+  }
+
+  if (!currentProjectId) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center glass rounded-2xl">
+        <div className="w-16 h-16 rounded-2xl bg-[color:var(--primary)]/10 text-[color:var(--primary)] flex items-center justify-center mb-6">
+          <FolderKanban size={28} />
+        </div>
+        <h2 className="font-display text-2xl font-bold">No project selected</h2>
+        <p className="text-sm text-muted-foreground mt-2 max-w-sm">
+          Please select a project from the workspace menu in the left pane to view reports.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-display text-3xl font-bold">Reports & analytics</h1>
-        <p className="text-sm text-muted-foreground mt-1">A calm view of how the team is performing.</p>
+        <div className="text-xs text-muted-foreground tracking-wider uppercase font-semibold">
+          Project: {currentProject?.projectKey} · {currentProject?.name}
+        </div>
+        <h1 className="font-display text-3xl font-bold mt-1">Reports & analytics</h1>
+        <p className="text-sm text-muted-foreground mt-1">A calm view of how this project is performing.</p>
       </div>
 
       <div className="grid lg:grid-cols-2 gap-5">

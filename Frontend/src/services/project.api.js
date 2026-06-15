@@ -24,6 +24,18 @@ export const getProjectDashboard = (projectId) =>
 export const getProjectMembers = (projectId) =>
   api.get(`/api/projects/${projectId}/members`);
 
+/** Add a member to a project */
+export const addProjectMember = (projectId, userId, role) =>
+  api.post(`/api/projects/${projectId}/members`, { userId, role });
+
+/** Remove a member from a project */
+export const removeProjectMember = (projectId, userId) =>
+  api.delete(`/api/projects/${projectId}/members/${userId}`);
+
+/** Update a member's role in a project */
+export const updateProjectMemberRole = (projectId, userId, role) =>
+  api.patch(`/api/projects/${projectId}/members/${userId}`, { role });
+
 /** Archive a project */
 export const archiveProject = (projectId) =>
   api.patch(`/api/projects/${projectId}/archive`);

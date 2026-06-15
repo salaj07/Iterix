@@ -64,6 +64,7 @@ export default function TaskDetailModal({ taskId, onClose }) {
   const role = me?.role;
   const projectRole = project?.memberRole || "DEVELOPER";
   const isDeveloper = projectRole === "DEVELOPER";
+  const projectMembers = members.filter(m => project?.memberIds?.includes(m.id) || m.id === project?.createdBy);
   const isAssignee = task.assigneeId && task.assigneeId === user?.id;
   const canMoveAny = can(role, ACTIONS.MOVE_TASK_ANY);
   const canReview = can(role, ACTIONS.APPROVE_TASK) && task.status === "In Review";
@@ -223,7 +224,7 @@ export default function TaskDetailModal({ taskId, onClose }) {
                 {isDeveloper ? (
                   <option value={user?.id}>{user?.name} (You)</option>
                 ) : (
-                  members.map(m => <option key={m.id} value={m.id}>{m.name}</option>)
+                  projectMembers.map(m => <option key={m.id} value={m.id}>{m.name}</option>)
                 )}
               </Select>
             </Field>

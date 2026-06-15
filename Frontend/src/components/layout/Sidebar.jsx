@@ -1,34 +1,85 @@
 import { NavLink, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useDispatch, useSelector } from "react-redux";
+import { useState, useRef, useEffect } from "react";
 import {
   LayoutDashboard, FolderKanban, Users, ListChecks, Trello, Layers,
   BarChart3, Bell, Settings, Boxes, Mail, ChevronLeft, ChevronRight, X, Sparkles,
+  Building2, Plus, ChevronDown
 } from "lucide-react";
 import { toggleSidebar } from "@/store/slices/uiSlice";
+import { setCurrentWorkspace } from "@/store/slices/workspaceSlice";
+import { setCurrentProjectId } from "@/store/slices/projectsSlice";
 import { cn } from "@/lib/utils";
 
-const items = [
+const projectItems = [
   { to: "/app/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/app/workspaces", label: "Workspaces", icon: Boxes },
-  { to: "/app/projects", label: "Projects", icon: FolderKanban },
+  { to: "/app/kanban", label: "Kanban Board", icon: Trello },
   { to: "/app/backlog", label: "Backlog", icon: Layers },
-  { to: "/app/kanban", label: "Kanban", icon: Trello },
   { to: "/app/sprints", label: "Sprints", icon: ListChecks },
-  { to: "/app/teams", label: "Teams", icon: Users },
+  { to: "/app/teams", label: "Project Members", icon: Users },
   { to: "/app/reports", label: "Reports", icon: BarChart3 },
+];
+
+const globalItems = [
+  { to: "/app/projects", label: "Projects", icon: FolderKanban },
+  { to: "/app/workspaces", label: "Workspaces", icon: Boxes },
   { to: "/app/notifications", label: "Notifications", icon: Bell },
   { to: "/app/inbox", label: "Email templates", icon: Mail },
   { to: "/app/settings", label: "Settings", icon: Settings },
 ];
 
+function useClickOutside(cb) {
+  const ref = useRef(null);
+  useEffect(() => {
+    const fn = (e) => { if (ref.current && !ref.current.contains(e.target)) cb(); };
+    document.addEventListener("mousedown", fn);
+    return () => document.removeEventListener("mousedown", fn);
+  }, [cb]);
+  return ref;
+}
+
 function SidebarInner({ collapsed, onCloseMobile }) {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const unread = useSelector(s => s.notifications.items.filter(i => !i.read).length);
+  const unread = useSelector(s => (s.notifications.items || []).filter(i => !i.read).length);
+
+  // Workspace state
+  const workspaces = useSelector(s => s.workspace.workspaces) || [];
+  const currentWorkspaceId = useSelector(s => s.workspace.currentWorkspaceId);
+  const currentWs = workspaces.find(w => w && (w.id === currentWorkspaceId || w._id === currentWorkspaceId));
+
+  // Project state
+  const allProjects = useSelector(s => s.projects.projects) || [];
+  const projects = allProjects.filter(p => p && (p.workspace === currentWorkspaceId || p.workspaceId === currentWorkspaceId));
+  const currentProjectId = useSelector(s => s.projects.currentProjectId);
+  const currentProject = projects.find(p => p && (p.id === currentProjectId || p._id === currentProjectId));
+
+  // Workspace Admin role check
+  const workspaceRole = currentWs?.role || "DEVELOPER";
+  const isWorkspaceAdmin = workspaceRole === "ADMIN";
+
+  // Dropdown open states
+  const [wsOpen, setWsOpen] = useState(false);
+  const [projOpen, setProjOpen] = useState(false);
+
+  const wsRef = useClickOutside(() => setWsOpen(false));
+  const projRef = useClickOutside(() => setProjOpen(false));
+
+  const handleSwitchWorkspace = (ws) => {
+    dispatch(setCurrentWorkspace(ws.id || ws._id));
+    setWsOpen(false);
+    setProjOpen(false);
+  };
+
+  const handleSwitchProject = (projectId) => {
+    dispatch(setCurrentProjectId(projectId));
+    setProjOpen(false);
+  };
 
   return (
     <div className="h-full flex flex-col bg-[color:var(--sidebar)] backdrop-blur-xl border-r border-[color:var(--sidebar-border)]">
+      {/* Title / Logo Header */}
       <div className="h-16 flex items-center px-4 border-b border-[color:var(--sidebar-border)] gap-3">
         <button onClick={() => navigate("/app/dashboard")} className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-[10px] bg-[color:var(--primary)] flex items-center justify-center text-white shrink-0">
@@ -39,7 +90,9 @@ function SidebarInner({ collapsed, onCloseMobile }) {
               <motion.span
                 initial={{ opacity: 0, x: -6 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -6 }}
                 className="font-display font-bold text-[15px] tracking-tight"
-              >Iterix</motion.span>
+              >
+                Iterix
+              </motion.span>
             )}
           </AnimatePresence>
         </button>
@@ -55,49 +108,242 @@ function SidebarInner({ collapsed, onCloseMobile }) {
         </button>
       </div>
 
-      <nav className="flex-1 px-2 py-3 space-y-0.5 overflow-y-auto">
-        {items.map((item) => {
-          const Icon = item.icon;
-          const showBadge = item.label === "Notifications" && unread > 0;
-          return (
-            <NavLink
-              key={item.to} to={item.to} onClick={onCloseMobile}
-              className={({ isActive }) => cn(
-                "group relative flex items-center gap-3 px-3 h-10 rounded-[12px] text-sm font-medium transition-colors",
-                isActive
-                  ? "bg-[color:var(--sidebar-accent)] text-foreground"
-                  : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
-              )}
+      {/* Workspace & Project Selection Pane */}
+      {!collapsed ? (
+        <div className="p-3 border-b border-[color:var(--sidebar-border)] space-y-2.5">
+          {/* Workspace Selector */}
+          <div className="relative" ref={wsRef}>
+            <button
+              onClick={() => setWsOpen(o => !o)}
+              className="w-full flex items-center gap-2 px-3 py-2 rounded-xl border border-[color:var(--sidebar-border)] bg-foreground/[0.03] hover:bg-foreground/5 text-sm font-semibold transition-all"
             >
-              {({ isActive }) => (
-                <>
-                  {isActive && (
-                    <motion.span
-                      layoutId="sidebar-active-pill"
-                      className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r-full bg-[color:var(--primary)]"
-                    />
-                  )}
-                  <Icon size={18} className="shrink-0" />
-                  <AnimatePresence initial={false}>
-                    {!collapsed && (
-                      <motion.span
-                        initial={{ opacity: 0, x: -4 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -4 }}
-                        className="truncate"
-                      >{item.label}</motion.span>
-                    )}
-                  </AnimatePresence>
-                  {showBadge && !collapsed && (
-                    <span className="ml-auto text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-[color:var(--primary)] text-[color:var(--primary-foreground)]">
-                      {unread}
-                    </span>
-                  )}
-                </>
-              )}
-            </NavLink>
-          );
-        })}
-      </nav>
+              <div className="w-5 h-5 rounded-md bg-[color:var(--primary)] flex items-center justify-center text-white text-[10px] shrink-0 font-bold">
+                {currentWs?.name?.slice(0,1).toUpperCase() || "W"}
+              </div>
+              <span className="truncate flex-1 text-left">{currentWs?.name || "Select Workspace"}</span>
+              <ChevronDown size={14} className="text-muted-foreground shrink-0" />
+            </button>
 
+            <AnimatePresence>
+              {wsOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}
+                  className="absolute left-0 mt-1 w-full glass-strong p-2 z-50 rounded-xl border border-[color:var(--sidebar-border)] shadow-lg"
+                >
+                  <div className="px-2 py-1 text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Workspaces</div>
+                  <div className="max-h-40 overflow-y-auto mt-1 space-y-0.5">
+                    {workspaces.map(ws => (
+                      <button
+                        key={ws.id || ws._id}
+                        onClick={() => handleSwitchWorkspace(ws)}
+                        className={cn(
+                          "w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-foreground/5 text-xs text-left transition-colors",
+                          (ws.id === currentWorkspaceId || ws._id === currentWorkspaceId) && "bg-[color:var(--sidebar-accent)] text-foreground font-semibold"
+                        )}
+                      >
+                        <div className="w-6 h-6 rounded bg-[color:var(--primary)]/15 flex items-center justify-center text-[color:var(--primary)] text-xs font-bold shrink-0">
+                          {ws.name.slice(0,1).toUpperCase()}
+                        </div>
+                        <span className="truncate">{ws.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                  <div className="h-px bg-border my-1.5" />
+                  <button
+                    onClick={() => { setWsOpen(false); navigate("/onboarding"); }}
+                    className="w-full flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg hover:bg-[color:var(--primary)] hover:text-white border border-dashed border-border text-xs text-muted-foreground transition-all font-medium"
+                  >
+                    <Plus size={13} /> Create Workspace
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* Project Selector */}
+          <div className="relative" ref={projRef}>
+            <button
+              onClick={() => setProjOpen(o => !o)}
+              className="w-full flex items-center gap-2 px-3 py-2 rounded-xl border border-[color:var(--sidebar-border)] bg-foreground/[0.03] hover:bg-foreground/5 text-sm font-semibold transition-all"
+            >
+              <FolderKanban size={15} className="text-[color:var(--primary)] shrink-0" />
+              <span className="truncate flex-1 text-left text-xs font-medium">
+                {currentProject ? `${currentProject.projectKey || "PROJ"} · ${currentProject.name}` : "Select Project"}
+              </span>
+              <ChevronDown size={14} className="text-muted-foreground shrink-0" />
+            </button>
+
+            <AnimatePresence>
+              {projOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}
+                  className="absolute left-0 mt-1 w-full glass-strong p-2 z-50 rounded-xl border border-[color:var(--sidebar-border)] shadow-lg"
+                >
+                  <div className="px-2 py-1 text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Projects</div>
+                  <div className="max-h-40 overflow-y-auto mt-1 space-y-0.5">
+                    {projects.map(p => (
+                      <button
+                        key={p.id || p._id}
+                        onClick={() => handleSwitchProject(p.id || p._id)}
+                        className={cn(
+                          "w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-foreground/5 text-xs text-left transition-colors",
+                          (p.id === currentProjectId || p._id === currentProjectId) && "bg-[color:var(--sidebar-accent)] text-foreground font-semibold"
+                        )}
+                      >
+                        <FolderKanban size={13} className="text-muted-foreground shrink-0" />
+                        <span className="truncate text-xs">{p.name}</span>
+                      </button>
+                    ))}
+                    {projects.length === 0 && (
+                      <div className="px-2.5 py-2 text-xs text-muted-foreground text-center">No projects in workspace</div>
+                    )}
+                  </div>
+                  <div className="h-px bg-border my-1.5" />
+                  {isWorkspaceAdmin && (
+                    <button
+                      onClick={() => { setProjOpen(false); navigate("/app/projects"); }}
+                      className="w-full flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg hover:bg-[color:var(--primary)] hover:text-white border border-dashed border-border text-xs text-muted-foreground transition-all font-medium"
+                    >
+                      <Plus size={13} /> Create Project
+                    </button>
+                  )}
+                  {!isWorkspaceAdmin && (
+                    <button
+                      onClick={() => { setProjOpen(false); navigate("/app/projects"); }}
+                      className="w-full flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg hover:bg-foreground/5 border border-border text-xs text-muted-foreground transition-all font-medium"
+                    >
+                      View All Projects
+                    </button>
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        </div>
+      ) : (
+        <div className="p-3 border-b border-[color:var(--sidebar-border)] flex flex-col items-center gap-2.5">
+          {/* Workspace Mini Icon */}
+          <button
+            onClick={() => navigate("/app/workspaces")}
+            className="w-9 h-9 rounded-lg bg-[color:var(--primary)] flex items-center justify-center text-white text-xs font-bold hover:opacity-90 transition-all"
+            title={currentWs?.name || "Workspaces"}
+          >
+            {currentWs?.name?.slice(0,1).toUpperCase() || "W"}
+          </button>
+
+          {/* Project Mini Icon */}
+          <button
+            onClick={() => navigate("/app/projects")}
+            className="w-9 h-9 rounded-lg bg-foreground/5 flex items-center justify-center text-muted-foreground hover:bg-foreground/10 transition-all"
+            title={currentProject?.name || "Projects"}
+          >
+            <FolderKanban size={16} />
+          </button>
+        </div>
+      )}
+
+      {/* Navigation Groups */}
+      <nav className="flex-1 px-2 py-4 space-y-6 overflow-y-auto">
+        {/* Project Specific Group */}
+        <div>
+          {!collapsed && (
+            <div className="px-3 mb-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60">
+              Project Context
+            </div>
+          )}
+          <div className="space-y-0.5">
+            {projectItems.map((item) => {
+              const Icon = item.icon;
+              return (
+                <NavLink
+                  key={item.to} to={item.to} onClick={onCloseMobile}
+                  className={({ isActive }) => cn(
+                    "group relative flex items-center gap-3 px-3 h-10 rounded-[12px] text-sm font-medium transition-colors",
+                    isActive
+                      ? "bg-[color:var(--sidebar-accent)] text-foreground"
+                      : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
+                  )}
+                >
+                  {({ isActive }) => (
+                    <>
+                      {isActive && (
+                        <motion.span
+                          layoutId="sidebar-active-pill"
+                          className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r-full bg-[color:var(--primary)]"
+                        />
+                      )}
+                      <Icon size={18} className="shrink-0" />
+                      <AnimatePresence initial={false}>
+                        {!collapsed && (
+                          <motion.span
+                            initial={{ opacity: 0, x: -4 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -4 }}
+                            className="truncate"
+                          >
+                            {item.label}
+                          </motion.span>
+                        )}
+                      </AnimatePresence>
+                    </>
+                  )}
+                </NavLink>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Global Group */}
+        <div>
+          {!collapsed && (
+            <div className="px-3 mb-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60">
+              Workspace & General
+            </div>
+          )}
+          <div className="space-y-0.5">
+            {globalItems.map((item) => {
+              const Icon = item.icon;
+              const showBadge = item.label === "Notifications" && unread > 0;
+              return (
+                <NavLink
+                  key={item.to} to={item.to} onClick={onCloseMobile}
+                  className={({ isActive }) => cn(
+                    "group relative flex items-center gap-3 px-3 h-10 rounded-[12px] text-sm font-medium transition-colors",
+                    isActive
+                      ? "bg-[color:var(--sidebar-accent)] text-foreground"
+                      : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
+                  )}
+                >
+                  {({ isActive }) => (
+                    <>
+                      {isActive && (
+                        <motion.span
+                          layoutId="sidebar-active-pill"
+                          className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r-full bg-[color:var(--primary)]"
+                        />
+                      )}
+                      <Icon size={18} className="shrink-0" />
+                      <AnimatePresence initial={false}>
+                        {!collapsed && (
+                          <motion.span
+                            initial={{ opacity: 0, x: -4 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -4 }}
+                            className="truncate"
+                          >
+                            {item.label}
+                          </motion.span>
+                        )}
+                      </AnimatePresence>
+                      {showBadge && !collapsed && (
+                        <span className="ml-auto text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-[color:var(--primary)] text-[color:var(--primary-foreground)]">
+                          {unread}
+                        </span>
+                      )}
+                    </>
+                  )}
+                </NavLink>
+              );
+            })}
+          </div>
+        </div>
+      </nav>
     </div>
   );
 }
