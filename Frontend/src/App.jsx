@@ -28,15 +28,23 @@ function ProtectedRoute({ children }) {
   const loading = useSelector((s) => s.auth.loading);
   const loc = useLocation();
 
-  // While fetchMe is in flight (on page refresh), show spinner
+  // While fetchMe is in flight (on page refresh), show brand loader splash
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-background text-foreground">
         <motion.div
-          animate={{ rotate: 360 }}
-          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-          className="w-8 h-8 border-2 border-[color:var(--primary)] border-t-transparent rounded-full"
-        />
+          initial={{ opacity: 0.5, scale: 0.95 }}
+          animate={{ opacity: [0.5, 1, 0.5], scale: [0.95, 1, 0.95] }}
+          transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+          className="flex items-center gap-3"
+        >
+          <div className="w-10 h-10 rounded-[12px] bg-[color:var(--primary)] flex items-center justify-center text-white shadow-lg shadow-[color:var(--primary)]/20">
+            <svg className="w-5.5 h-5.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275Z" />
+            </svg>
+          </div>
+          <span className="font-display font-bold text-2xl tracking-tight">Iterix</span>
+        </motion.div>
       </div>
     );
   }
@@ -64,7 +72,7 @@ export default function App() {
   return (
     <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID || "dummy-client-id"}>
       <AnimatePresence mode="wait">
-        <Routes location={location} key={location.pathname}>
+        <Routes>
           <Route path="/" element={<PageTransition><Landing /></PageTransition>} />
           <Route path="/login" element={<PageTransition><Login /></PageTransition>} />
           <Route path="/login/otp" element={<PageTransition><OtpVerify /></PageTransition>} />

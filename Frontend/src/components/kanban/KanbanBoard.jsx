@@ -26,7 +26,19 @@ export default function KanbanBoard({ projectId = null, sprintId = undefined, on
       return t.sprintId === sprintId;
     });
   const tasks = visible;
-  const grouped = STATUSES.reduce((acc, s) => { acc[s] = tasks.filter(t => t.status === s); return acc; }, {});
+  const PRIORITY_ORDER = { Urgent: 4, High: 3, Medium: 2, Low: 1 };
+  const grouped = STATUSES.reduce((acc, s) => {
+    const filtered = tasks.filter(t => t.status === s);
+    acc[s] = [...filtered].sort((a, b) => {
+      const pA = PRIORITY_ORDER[a.priority] || 2;
+      const pB = PRIORITY_ORDER[b.priority] || 2;
+      if (pB !== pA) return pB - pA;
+      const tA = new Date(a.createdAt || 0).getTime();
+      const tB = new Date(b.createdAt || 0).getTime();
+      return tB - tA;
+    });
+    return acc;
+  }, {});
 
   const onDragEnd = (result) => {
     const { destination, source, draggableId } = result;

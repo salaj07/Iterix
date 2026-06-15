@@ -21,12 +21,32 @@ export default function Teams() {
   const currentWorkspaceId = useSelector(s => s.workspace.currentWorkspaceId);
   const myWorkspaceMember = workspaceMembers.find(m => m && m.id === user?.id) || { ...user, role: ROLES.DEVELOPER };
   const isWorkspaceAdmin = myWorkspaceMember.role === ROLES.ADMIN;
+  const loadingWorkspaceMembers = useSelector(s => s.org.loading);
 
   // Project Members
   const currentProjectId = useSelector(s => s.projects.currentProjectId);
   const allProjects = useSelector(s => s.projects.projects) || [];
   const currentProject = allProjects.find(p => p && (p.id === currentProjectId || p._id === currentProjectId)) || null;
   const projectMembers = useSelector(s => s.projects.projectMembers) || [];
+  const loadingProjectMembers = useSelector(s => s.projects.loadingMembers);
+
+  const SkeletonRow = () => (
+    <div className="px-5 py-4 grid grid-cols-12 gap-3 items-center border-b border-border last:border-b-0 animate-pulse">
+      <div className="col-span-5 flex items-center gap-3">
+        <div className="w-8 h-8 rounded-full bg-foreground/10" />
+        <div className="h-4 w-24 bg-foreground/10 rounded" />
+      </div>
+      <div className="col-span-3 hidden md:block">
+        <div className="h-4 w-36 bg-foreground/10 rounded" />
+      </div>
+      <div className="col-span-3 md:col-span-2">
+        <div className="h-6 w-20 bg-foreground/10 rounded-[8px]" />
+      </div>
+      <div className="col-span-4 md:col-span-2 text-right">
+        <div className="h-8 w-8 bg-foreground/10 rounded-md inline-block" />
+      </div>
+    </div>
+  );
 
   const projectMemberMe = projectMembers.find(pm => {
     if (!pm) return false;
@@ -135,8 +155,8 @@ export default function Teams() {
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
             {activeViewMode === "project" 
-              ? `${projectMembers.length} member(s) assigned to this project.` 
-              : `${workspaceMembers.length} member(s) inside this workspace.`}
+              ? (loadingProjectMembers ? "Loading project team..." : `${projectMembers.length} member(s) assigned to this project.`)
+              : (loadingWorkspaceMembers ? "Loading workspace members..." : `${workspaceMembers.length} member(s) inside this workspace.`)}
           </p>
         </div>
 
@@ -176,69 +196,77 @@ export default function Teams() {
             <div className="col-span-3 md:col-span-2">Project Role</div>
             <div className="col-span-4 md:col-span-2 text-right">Actions</div>
           </div>
-          {projectMembers.map(m => {
-            const memberUser = m.user || m;
-            const mId = memberUser._id || memberUser.id || m.id;
-            const mName = memberUser.name || m.name || "Member";
-            const mEmail = memberUser.email || m.email || "";
+          {loadingProjectMembers ? (
+            <>
+              <SkeletonRow />
+              <SkeletonRow />
+              <SkeletonRow />
+            </>
+          ) : (
+            projectMembers.map(m => {
+              const memberUser = m.user || m;
+              const mId = memberUser._id || memberUser.id || m.id;
+              const mName = memberUser.name || m.name || "Member";
+              const mEmail = memberUser.email || m.email || "";
 
-            return (
-              <div key={mId} className="px-5 py-3 grid grid-cols-12 gap-3 items-center border-b border-border last:border-b-0 hover:bg-foreground/[0.02]">
-                <div className="col-span-5 flex items-center gap-3 min-w-0">
-                  <Avatar name={mName} color={m.avatarColor} />
-                  <div className="min-w-0">
-                    <div className="text-sm font-medium truncate">{mName}</div>
-                    <div className="text-xs text-muted-foreground md:hidden truncate">{mEmail}</div>
+              return (
+                <div key={mId} className="px-5 py-3 grid grid-cols-12 gap-3 items-center border-b border-border last:border-b-0 hover:bg-foreground/[0.02]">
+                  <div className="col-span-5 flex items-center gap-3 min-w-0">
+                    <Avatar name={mName} color={m.avatarColor} />
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium truncate">{mName}</div>
+                      <div className="text-xs text-muted-foreground md:hidden truncate">{mEmail}</div>
+                    </div>
+                  </div>
+                  <div className="col-span-3 hidden md:block text-sm text-muted-foreground truncate">{mEmail}</div>
+                  <div className="col-span-3 md:col-span-2">
+                    {canManageProjectMembers && mId !== user?.id ? (
+                      <Select
+                        value={m.role}
+                        onChange={async (e) => {
+                          const newRole = e.target.value;
+                          const res = await dispatch(updateProjectMemberRoleAsync({ projectId: currentProjectId, userId: mId, role: newRole }));
+                          if (updateProjectMemberRoleAsync.fulfilled.match(res)) {
+                            toast.success("Project role updated");
+                            dispatch(fetchProjectMembers(currentProjectId));
+                          } else {
+                            toast.error(res.payload?.message || "Failed to update project role");
+                          }
+                        }}
+                        className="h-8 text-xs py-0"
+                      >
+                        <option value="TEAM_LEAD">Project Lead</option>
+                        <option value="DEVELOPER">Developer</option>
+                      </Select>
+                    ) : (
+                      <span className="text-sm font-medium text-muted-foreground px-2 py-1">
+                        {m.role === "TEAM_LEAD" ? "Project Lead" : "Developer"}
+                      </span>
+                    )}
+                  </div>
+                  <div className="col-span-4 md:col-span-2 text-right">
+                    {canManageProjectMembers && mId !== user?.id && (
+                      <button
+                        onClick={async () => {
+                          const res = await dispatch(removeProjectMemberAsync({ projectId: currentProjectId, userId: mId }));
+                          if (removeProjectMemberAsync.fulfilled.match(res)) {
+                            toast.success("Member removed from project");
+                            dispatch(fetchProjectMembers(currentProjectId));
+                          } else {
+                            toast.error(res.payload?.message || "Failed to remove member");
+                          }
+                        }}
+                        className="p-1.5 rounded-md hover:bg-foreground/5 text-muted-foreground"
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    )}
                   </div>
                 </div>
-                <div className="col-span-3 hidden md:block text-sm text-muted-foreground truncate">{mEmail}</div>
-                <div className="col-span-3 md:col-span-2">
-                  {canManageProjectMembers && mId !== user?.id ? (
-                    <Select
-                      value={m.role}
-                      onChange={async (e) => {
-                        const newRole = e.target.value;
-                        const res = await dispatch(updateProjectMemberRoleAsync({ projectId: currentProjectId, userId: mId, role: newRole }));
-                        if (updateProjectMemberRoleAsync.fulfilled.match(res)) {
-                          toast.success("Project role updated");
-                          dispatch(fetchProjectMembers(currentProjectId));
-                        } else {
-                          toast.error(res.payload?.message || "Failed to update project role");
-                        }
-                      }}
-                      className="h-8 text-xs py-0"
-                    >
-                      <option value="TEAM_LEAD">Project Lead</option>
-                      <option value="DEVELOPER">Developer</option>
-                    </Select>
-                  ) : (
-                    <span className="text-sm font-medium text-muted-foreground px-2 py-1">
-                      {m.role === "TEAM_LEAD" ? "Project Lead" : "Developer"}
-                    </span>
-                  )}
-                </div>
-                <div className="col-span-4 md:col-span-2 text-right">
-                  {canManageProjectMembers && mId !== user?.id && (
-                    <button
-                      onClick={async () => {
-                        const res = await dispatch(removeProjectMemberAsync({ projectId: currentProjectId, userId: mId }));
-                        if (removeProjectMemberAsync.fulfilled.match(res)) {
-                          toast.success("Member removed from project");
-                          dispatch(fetchProjectMembers(currentProjectId));
-                        } else {
-                          toast.error(res.payload?.message || "Failed to remove member");
-                        }
-                      }}
-                      className="p-1.5 rounded-md hover:bg-foreground/5 text-muted-foreground"
-                    >
-                      <Trash2 size={15} />
-                    </button>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-          {projectMembers.length === 0 && (
+              );
+            })
+          )}
+          {!loadingProjectMembers && projectMembers.length === 0 && (
             <div className="py-20 text-center text-sm text-muted-foreground">
               No team members assigned to this project yet.
             </div>
@@ -254,58 +282,66 @@ export default function Teams() {
               <div className="col-span-3 md:col-span-2">Workspace Role</div>
               <div className="col-span-4 md:col-span-2 text-right">Actions</div>
             </div>
-            {workspaceMembers.map(m => (
-              <div key={m.id} className="px-5 py-3 grid grid-cols-12 gap-3 items-center border-b border-border last:border-b-0 hover:bg-foreground/[0.02]">
-                <div className="col-span-5 flex items-center gap-3 min-w-0">
-                  <Avatar name={m.name} color={m.avatarColor} />
-                  <div className="min-w-0">
-                    <div className="text-sm font-medium truncate">{m.name}</div>
-                    <div className="text-xs text-muted-foreground md:hidden truncate">{m.email}</div>
+            {loadingWorkspaceMembers ? (
+              <>
+                <SkeletonRow />
+                <SkeletonRow />
+                <SkeletonRow />
+              </>
+            ) : (
+              workspaceMembers.map(m => (
+                <div key={m.id} className="px-5 py-3 grid grid-cols-12 gap-3 items-center border-b border-border last:border-b-0 hover:bg-foreground/[0.02]">
+                  <div className="col-span-5 flex items-center gap-3 min-w-0">
+                    <Avatar name={m.name} color={m.avatarColor} />
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium truncate">{m.name}</div>
+                      <div className="text-xs text-muted-foreground md:hidden truncate">{m.email}</div>
+                    </div>
+                  </div>
+                  <div className="col-span-3 hidden md:block text-sm text-muted-foreground truncate">{m.email}</div>
+                  <div className="col-span-3 md:col-span-2">
+                    {isWorkspaceAdmin && m.id !== user?.id ? (
+                      <Select
+                        value={m.role}
+                        onChange={async (e) => {
+                          const newRole = e.target.value;
+                          const res = await dispatch(updateMemberRoleAsync({ workspaceId: currentWorkspaceId, memberId: m.id, role: newRole }));
+                          if (updateMemberRoleAsync.fulfilled.match(res)) {
+                            toast.success("Member role updated");
+                          } else {
+                            toast.error(res.payload?.message || "Failed to update role");
+                          }
+                        }}
+                        className="h-8 text-xs py-0"
+                      >
+                        <option value={ROLES.ADMIN}>Admin</option>
+                        <option value={ROLES.TEAM_LEAD}>Project Lead</option>
+                        <option value={ROLES.DEVELOPER}>Developer</option>
+                      </Select>
+                    ) : (
+                      <span className="text-sm font-medium text-muted-foreground px-2 py-1">{roleLabel(m.role)}</span>
+                    )}
+                  </div>
+                  <div className="col-span-4 md:col-span-2 text-right">
+                    {isWorkspaceAdmin && m.id !== user?.id && (
+                      <button
+                        onClick={async () => {
+                          const res = await dispatch(removeMemberAsync({ workspaceId: currentWorkspaceId, memberId: m.id }));
+                          if (removeMemberAsync.fulfilled.match(res)) {
+                            toast.success("Member removed from workspace");
+                          } else {
+                            toast.error(res.payload?.message || "Failed to remove member");
+                          }
+                        }}
+                        className="p-1.5 rounded-md hover:bg-foreground/5 text-muted-foreground"
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    )}
                   </div>
                 </div>
-                <div className="col-span-3 hidden md:block text-sm text-muted-foreground truncate">{m.email}</div>
-                <div className="col-span-3 md:col-span-2">
-                  {isWorkspaceAdmin && m.id !== user?.id ? (
-                    <Select
-                      value={m.role}
-                      onChange={async (e) => {
-                        const newRole = e.target.value;
-                        const res = await dispatch(updateMemberRoleAsync({ workspaceId: currentWorkspaceId, memberId: m.id, role: newRole }));
-                        if (updateMemberRoleAsync.fulfilled.match(res)) {
-                          toast.success("Member role updated");
-                        } else {
-                          toast.error(res.payload?.message || "Failed to update role");
-                        }
-                      }}
-                      className="h-8 text-xs py-0"
-                    >
-                      <option value={ROLES.ADMIN}>Admin</option>
-                      <option value={ROLES.TEAM_LEAD}>Project Lead</option>
-                      <option value={ROLES.DEVELOPER}>Developer</option>
-                    </Select>
-                  ) : (
-                    <span className="text-sm font-medium text-muted-foreground px-2 py-1">{roleLabel(m.role)}</span>
-                  )}
-                </div>
-                <div className="col-span-4 md:col-span-2 text-right">
-                  {isWorkspaceAdmin && m.id !== user?.id && (
-                    <button
-                      onClick={async () => {
-                        const res = await dispatch(removeMemberAsync({ workspaceId: currentWorkspaceId, memberId: m.id }));
-                        if (removeMemberAsync.fulfilled.match(res)) {
-                          toast.success("Member removed from workspace");
-                        } else {
-                          toast.error(res.payload?.message || "Failed to remove member");
-                        }
-                      }}
-                      className="p-1.5 rounded-md hover:bg-foreground/5 text-muted-foreground"
-                    >
-                      <Trash2 size={15} />
-                    </button>
-                  )}
-                </div>
-              </div>
-            ))}
+              ))
+            )}
           </GlassCard>
 
           {/* Invitations list */}

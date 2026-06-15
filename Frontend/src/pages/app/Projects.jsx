@@ -23,6 +23,17 @@ export default function Projects() {
   const [creating, setCreating] = useState(false);
   const [form, setForm] = useState({ name: "", key: "", description: "" });
 
+  const ProjectSkeleton = () => (
+    <div className="glass p-5 h-40 animate-pulse flex flex-col justify-between">
+      <div>
+        <div className="h-3 w-12 bg-foreground/10 rounded" />
+        <div className="h-5 w-32 bg-foreground/10 rounded mt-3" />
+        <div className="h-3 w-48 bg-foreground/10 rounded mt-2" />
+      </div>
+      <div className="h-3 w-24 bg-foreground/10 rounded" />
+    </div>
+  );
+
   // Fetch projects from API on mount
   useEffect(() => {
     dispatch(fetchProjects());
@@ -73,8 +84,10 @@ export default function Projects() {
       </div>
 
       {loading && filteredProjects.length === 0 ? (
-        <div className="flex justify-center py-20">
-          <Loader2 className="animate-spin text-muted-foreground" size={24} />
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <ProjectSkeleton />
+          <ProjectSkeleton />
+          <ProjectSkeleton />
         </div>
       ) : filteredProjects.length === 0 ? (
         <GlassCard className="py-20 text-center">

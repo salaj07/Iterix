@@ -115,6 +115,7 @@ const slice = createSlice({
     currentProjectId: null,
     projectMembers: [], // members of currently selected project
     loading: false,
+    loadingMembers: false,
     error: null,
   },
   reducers: {
@@ -282,7 +283,11 @@ const slice = createSlice({
 
     /* fetchProjectMembers */
     builder
+      .addCase(fetchProjectMembers.pending, (state) => {
+        state.loadingMembers = true;
+      })
       .addCase(fetchProjectMembers.fulfilled, (state, { payload }) => {
+        state.loadingMembers = false;
         if (state.currentProjectId === payload.projectId) {
           state.projectMembers = payload.members;
         }
@@ -291,6 +296,9 @@ const slice = createSlice({
         if (proj) {
           proj.memberIds = payload.members.map(m => m.id || m.userId || m.user?._id || m.user);
         }
+      })
+      .addCase(fetchProjectMembers.rejected, (state) => {
+        state.loadingMembers = false;
       });
 
     /* addProjectMemberAsync */

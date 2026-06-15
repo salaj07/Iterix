@@ -17,6 +17,18 @@ export default function Workspaces() {
   const [name, setName] = useState("");
   const [creating, setCreating] = useState(false);
 
+  const WorkspaceSkeleton = () => (
+    <div className="glass p-5 h-[154px] animate-pulse flex flex-col justify-between text-left">
+      <div className="flex justify-between items-start">
+        <div className="w-11 h-11 rounded-[12px] bg-foreground/10" />
+      </div>
+      <div>
+        <div className="h-5 w-32 bg-foreground/10 rounded" />
+        <div className="h-3.5 w-24 bg-foreground/10 rounded mt-2" />
+      </div>
+    </div>
+  );
+
   // Fetch workspaces from API on mount
   useEffect(() => {
     dispatch(fetchWorkspaces());
@@ -52,8 +64,10 @@ export default function Workspaces() {
       </div>
 
       {loading && workspaces.length === 0 ? (
-        <div className="flex justify-center py-20">
-          <Loader2 className="animate-spin text-muted-foreground" size={24} />
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <WorkspaceSkeleton />
+          <WorkspaceSkeleton />
+          <WorkspaceSkeleton />
         </div>
       ) : (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">

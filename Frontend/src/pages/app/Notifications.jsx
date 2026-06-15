@@ -29,6 +29,20 @@ export default function Notifications() {
   const [activeTab, setActiveTab] = useState("unread");
   const unread = (items || []).filter((i) => i && !i.read).length;
 
+  const NotificationSkeleton = () => (
+    <div className="flex items-center justify-between gap-3 px-5 py-4 animate-pulse">
+      <div className="flex-1 flex gap-3 items-start min-w-0">
+        <div className="w-9 h-9 rounded-full bg-foreground/10 shrink-0" />
+        <div className="flex-1 min-w-0 pr-4">
+          <div className="h-4 w-32 bg-foreground/10 rounded" />
+          <div className="h-3 w-48 bg-foreground/10 rounded mt-1.5" />
+          <div className="h-2.5 w-16 bg-foreground/10 rounded mt-2" />
+        </div>
+      </div>
+      <div className="h-8 w-16 bg-foreground/10 rounded-md shrink-0" />
+    </div>
+  );
+
   // Fetch notifications and workspace invitations from API on mount
   useEffect(() => {
     dispatch(fetchNotifications());
@@ -126,8 +140,10 @@ export default function Notifications() {
 
       <GlassCard className="p-0 overflow-hidden">
         {loading && displayedItems.length === 0 ? (
-          <div className="flex justify-center py-16">
-            <Loader2 className="animate-spin text-muted-foreground" size={22} />
+          <div className="divide-y divide-border">
+            <NotificationSkeleton />
+            <NotificationSkeleton />
+            <NotificationSkeleton />
           </div>
         ) : displayedItems.length === 0 ? (
           <div className="py-20 text-center">

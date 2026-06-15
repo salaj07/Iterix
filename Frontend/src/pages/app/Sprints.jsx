@@ -22,6 +22,25 @@ export default function Sprints() {
     .filter((s) => s && s.projectId === currentProjectId)
     .sort((a, b) => new Date(b.createdAt || b.startDate || 0) - new Date(a.createdAt || a.startDate || 0));
 
+  const SprintSkeleton = () => (
+    <div className="glass p-5 h-44 animate-pulse flex flex-col justify-between">
+      <div>
+        <div className="flex justify-between items-center">
+          <div className="h-5 w-32 bg-foreground/10 rounded" />
+          <div className="h-6 w-16 bg-foreground/10 rounded-[10px]" />
+        </div>
+        <div className="h-3 w-40 bg-foreground/10 rounded mt-2" />
+      </div>
+      <div>
+        <div className="flex justify-between text-xs mb-1.5">
+          <div className="h-3 w-16 bg-foreground/10 rounded" />
+          <div className="h-3 w-8 bg-foreground/10 rounded" />
+        </div>
+        <div className="w-full bg-foreground/5 h-2 rounded-full" />
+      </div>
+    </div>
+  );
+
   const allTasks = useSelector((s) => s.tasks.tasks) || [];
   const tasks = allTasks.filter((t) => t && t.projectId === currentProjectId);
 
@@ -158,8 +177,9 @@ export default function Sprints() {
       </div>
 
       {loading && sprints.length === 0 ? (
-        <div className="flex justify-center py-20">
-          <Loader2 className="animate-spin text-muted-foreground" size={24} />
+        <div className="grid lg:grid-cols-2 gap-4">
+          <SprintSkeleton />
+          <SprintSkeleton />
         </div>
       ) : sprints.length === 0 ? (
         <GlassCard className="py-16 text-center">

@@ -59,8 +59,8 @@ export default function Login() {
               }
             } else {
               toast.error(result.payload?.message || "Google Sign-In failed.");
+              setLoading(false);
             }
-            setLoading(false);
           },
         });
         window.google.accounts.id.renderButton(
@@ -92,8 +92,8 @@ export default function Login() {
       const msg = result.payload?.errors?.[0]?.message || result.payload?.message || "Failed to send OTP. Please try again.";
       setErr(msg);
       toast.error(msg);
+      setLoading(false);
     }
-    setLoading(false);
   };
 
 
@@ -142,8 +142,8 @@ export default function Login() {
       }
     } else {
       toast.error(result.payload?.message || "Google Sign-In failed.");
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   return (
