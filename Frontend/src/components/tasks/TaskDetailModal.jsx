@@ -12,7 +12,7 @@ import {
   updateTask, addComment, addSubtask, toggleSubtask, moveTask,
   submitForReview, approveTask, rejectTask, deleteTask,
   changeTaskStatusAsync, assignTaskAsync, approveTaskAsync, requestChangesAsync,
-  updateTaskDetailsAsync,
+  updateTaskDetailsAsync, fetchCommentsAsync, addCommentAsync,
 } from "@/store/slices/tasksSlice";
 import { push as pushNotif } from "@/store/slices/notificationsSlice";
 import { PRIORITIES, ROLES } from "@/store/seed";
@@ -34,7 +34,10 @@ export default function TaskDetailModal({ taskId, onClose }) {
 
   useEffect(() => {
     setEdited({});
-  }, [taskId]);
+    if (taskId) {
+      dispatch(fetchCommentsAsync(taskId));
+    }
+  }, [taskId, dispatch]);
 
   const hasChanges = Object.keys(edited).length > 0;
 
@@ -70,7 +73,7 @@ export default function TaskDetailModal({ taskId, onClose }) {
 
   const submitComment = () => {
     if (!comment.trim()) return;
-    dispatch(addComment({ taskId: task.id, authorId: user.id, text: comment.trim() }));
+    dispatch(addCommentAsync({ taskId: task.id, content: comment.trim() }));
     if (task.assigneeId && task.assigneeId !== user.id) {
       dispatch(pushNotif({ userId: task.assigneeId, type: "comment", title: "New comment", body: `${user.name} commented on ${task.title}` }));
     }
@@ -156,11 +159,12 @@ export default function TaskDetailModal({ taskId, onClose }) {
             <div className="space-y-3">
               {task.comments.map(c => {
                 const author = members.find(m => m.id === c.authorId);
+                const authorName = author?.name || c.authorName || "Unknown";
                 return (
                   <div key={c.id} className="flex gap-3">
-                    <Avatar name={author?.name} color={author?.avatarColor} size={30} />
+                    <Avatar name={authorName} color={author?.avatarColor} size={30} />
                     <div className="flex-1 min-w-0">
-                      <div className="text-xs"><span className="font-semibold">{author?.name || "Unknown"}</span> <span className="text-muted-foreground">{formatRelative(c.at)}</span></div>
+                      <div className="text-xs"><span className="font-semibold">{authorName}</span> <span className="text-muted-foreground">{formatRelative(c.at)}</span></div>
                       <div className="text-sm mt-0.5 whitespace-pre-wrap">{c.text}</div>
                     </div>
                   </div>

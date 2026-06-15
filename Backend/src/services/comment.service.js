@@ -5,7 +5,7 @@ const ProjectMember = require("../models/projectMember.model");
 /**
  * Add Comment
  */
-const addComment = async ({ taskId, message }, currentUser) => {
+const addComment = async ({ taskId, content }, currentUser) => {
   const task = await Task.findById(taskId);
 
   if (!task) {
@@ -26,7 +26,7 @@ const addComment = async ({ taskId, message }, currentUser) => {
   return await Comment.create({
     task: taskId,
     user: currentUser._id,
-    message,
+    message: content,
   });
 };
 

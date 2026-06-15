@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import * as taskApi from "@/services/task.api";
+import * as commentApi from "@/services/comment.api";
 
 /* ─── Mapping Helper ────────────────────────────────────────────────── */
 
@@ -142,6 +143,32 @@ export const updateTaskDetailsAsync = createAsyncThunk(
       return res.data;
     } catch (err) {
       return rejectWithValue(err.response?.data || { message: "Failed to update task details" });
+    }
+  }
+);
+
+/** Fetch comments for a task from the backend */
+export const fetchCommentsAsync = createAsyncThunk(
+  "tasks/fetchComments",
+  async (taskId, { rejectWithValue }) => {
+    try {
+      const res = await commentApi.getTaskComments(taskId);
+      return { taskId, comments: res.data.data || [] };
+    } catch (err) {
+      return rejectWithValue(err.response?.data || { message: "Failed to load comments" });
+    }
+  }
+);
+
+/** Add a comment via the backend */
+export const addCommentAsync = createAsyncThunk(
+  "tasks/addComment",
+  async ({ taskId, content }, { rejectWithValue }) => {
+    try {
+      const res = await commentApi.addComment(taskId, content);
+      return { taskId, comment: res.data.data };
+    } catch (err) {
+      return rejectWithValue(err.response?.data || { message: "Failed to add comment" });
     }
   }
 );
@@ -345,6 +372,37 @@ const slice = createSlice({
       .addCase(requestChangesAsync.fulfilled, replaceOnFulfilled)
       .addCase(moveToSprintAsync.fulfilled, replaceOnFulfilled)
       .addCase(updateTaskDetailsAsync.fulfilled, replaceOnFulfilled);
+
+    /* fetchCommentsAsync */
+    builder.addCase(fetchCommentsAsync.fulfilled, (state, { payload }) => {
+      const { taskId, comments } = payload;
+      const t = state.tasks.find((x) => x.id === taskId || x._id === taskId);
+      if (t) {
+        t.comments = comments.map((c) => ({
+          id: c._id || c.id,
+          authorId: typeof c.user === "object" ? (c.user._id || c.user.id) : c.user,
+          authorName: typeof c.user === "object" ? c.user.name : undefined,
+          text: c.message,
+          at: new Date(c.createdAt).getTime(),
+        }));
+      }
+    });
+
+    /* addCommentAsync */
+    builder.addCase(addCommentAsync.fulfilled, (state, { payload }) => {
+      const { taskId, comment: c } = payload;
+      if (!c) return;
+      const t = state.tasks.find((x) => x.id === taskId || x._id === taskId);
+      if (t) {
+        t.comments = [...(t.comments || []), {
+          id: c._id || c.id,
+          authorId: typeof c.user === "object" ? (c.user._id || c.user.id) : c.user,
+          authorName: typeof c.user === "object" ? c.user.name : undefined,
+          text: c.message,
+          at: new Date(c.createdAt).getTime(),
+        }];
+      }
+    });
   },
 });
 
