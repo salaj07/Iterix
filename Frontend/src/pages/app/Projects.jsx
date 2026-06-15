@@ -8,7 +8,7 @@ import { GlassCard } from "@/components/common/Primitives";
 import Button from "@/components/common/Button";
 import Modal from "@/components/common/Modal";
 import { Input, Label, Textarea } from "@/components/common/Primitives";
-import { fetchProjects, createProjectAsync } from "@/store/slices/projectsSlice";
+import { fetchProjects, createProjectAsync, setCurrentProjectId } from "@/store/slices/projectsSlice";
 import { AvatarStack } from "@/components/common/Avatar";
 
 export default function Projects() {
@@ -90,7 +90,7 @@ export default function Projects() {
           {filteredProjects.map((p) => {
             const id = p._id || p.id;
             return (
-              <Link key={id} to={`/app/projects/${id}`}>
+              <Link key={id} to={`/app/projects/${id}`} onClick={() => dispatch(setCurrentProjectId(id))}>
                 <motion.div whileHover={{ y: -3 }} transition={{ type: "spring", stiffness: 300 }} className="glass p-5 h-full">
                   <div className="flex items-center justify-between">
                     <div className="text-[11px] tracking-wider font-semibold text-muted-foreground">{p.key}</div>

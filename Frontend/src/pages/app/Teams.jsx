@@ -311,21 +311,21 @@ export default function Teams() {
           {/* Invitations list */}
           <GlassCard>
             <h3 className="font-display font-semibold mb-3 flex items-center gap-2"><Mail size={15} /> Invitations</h3>
-            {invitations.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-6 text-center">No invitations sent yet.</p>
+            {invitations.filter(inv => inv && inv.status === "pending").length === 0 ? (
+              <p className="text-sm text-muted-foreground py-6 text-center">No pending invitations.</p>
             ) : (
               <ul className="divide-y divide-border -mx-2">
-                {invitations.map(inv => (
+                {invitations.filter(inv => inv && inv.status === "pending").map(inv => (
                   <li key={inv.id} className="px-2 py-3 flex items-center gap-3">
                     <div className="w-9 h-9 rounded-full bg-foreground/5 flex items-center justify-center text-muted-foreground"><Mail size={14} /></div>
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-medium truncate">{inv.name} — <span className="text-muted-foreground">{inv.email}</span></div>
                       <div className="text-xs text-muted-foreground">Sent {formatRelative(inv.sentAt)} · {roleLabel(inv.role)}</div>
                     </div>
-                    <Badge tone={inv.status === "accepted" ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" : "bg-amber-500/10 text-amber-500 border-amber-500/20"}>
+                    <Badge tone="bg-amber-500/10 text-amber-500 border-amber-500/20">
                       {inv.status}
                     </Badge>
-                    {inv.status === "pending" && <Button size="sm" variant="outline" onClick={() => acceptWsInvite(inv.id)}>Simulate accept</Button>}
+                    <Button size="sm" variant="outline" onClick={() => acceptWsInvite(inv.id)}>Simulate accept</Button>
                   </li>
                 ))}
               </ul>

@@ -1,6 +1,7 @@
 import { useParams, Link } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { setCurrentProjectId } from "@/store/slices/projectsSlice";
 import { motion } from "framer-motion";
 import { ArrowLeft, Plus, Clock, RotateCcw, Archive } from "lucide-react";
 import { toast } from "sonner";
@@ -16,15 +17,21 @@ import { cn } from "@/lib/utils";
 
 export default function ProjectDetail() {
   const { id } = useParams();
-  const project = useSelector(s => s.projects.projects.find(p => p.id === id || p._id === id));
-  const members = useSelector(s => s.org.members);
-  const sprints = useSelector(s => s.sprints.sprints.filter(s => s.projectId === id));
-  const tasks = useSelector(s => s.tasks.tasks.filter(t => t.projectId === id));
-  const activeTasks = tasks.filter(t => !t.archived);
+  const project = useSelector(s => (s.projects.projects || []).find(p => p && (p.id === id || p._id === id)));
+  const members = useSelector(s => s.org.members || []);
+  const sprints = useSelector(s => (s.sprints.sprints || []).filter(s => s && s.projectId === id));
+  const tasks = useSelector(s => (s.tasks.tasks || []).filter(t => t && t.projectId === id));
+  const activeTasks = tasks.filter(t => t && !t.archived);
   const dispatch = useDispatch();
   const [tab, setTab] = useState("overview");
   const [createOpen, setCreateOpen] = useState(false);
   const [createStatus, setCreateStatus] = useState("Backlog");
+
+  useEffect(() => {
+    if (id) {
+      dispatch(setCurrentProjectId(id));
+    }
+  }, [dispatch, id]);
 
   if (!project) {
     return (

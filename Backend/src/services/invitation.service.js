@@ -122,6 +122,39 @@ const acceptInvitation = async (invitationId, user) => {
   invitation.status = "ACCEPTED";
   await invitation.save();
 
+  try {
+    const ws = await Workspace.findById(invitation.workspace);
+    const wsName = ws ? ws.name : "workspace";
+
+    const admins = await WorkspaceMember.find({
+      workspace: invitation.workspace,
+      role: "ADMIN",
+      isActive: true,
+    });
+
+    const recipientIds = new Set();
+    if (invitation.invitedBy) {
+      recipientIds.add(invitation.invitedBy.toString());
+    }
+    admins.forEach((adm) => {
+      if (adm.user) recipientIds.add(adm.user.toString());
+    });
+
+    recipientIds.delete(user._id.toString());
+
+    const { createNotification } = require("./notification.service");
+    for (const recipientId of recipientIds) {
+      await createNotification({
+        user: recipientId,
+        title: "Member joined workspace",
+        message: `${user.name} has joined the workspace "${wsName}".`,
+        type: "MEMBER_JOINED",
+      });
+    }
+  } catch (err) {
+    console.error("Failed to send join workspace notification:", err);
+  }
+
   return {
     message: "Invitation accepted successfully",
   };

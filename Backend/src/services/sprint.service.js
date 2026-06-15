@@ -60,6 +60,13 @@ const createSprint = async (data, currentUser) => {
     createdBy: currentUser._id,
   });
 
+  await notifyProjectMembers(
+    projectId,
+    "New Sprint Created",
+    `Sprint "${name}" has been planned in project "${project.name}" by ${currentUser.name || "a team member"}.`,
+    currentUser._id
+  );
+
   return sprint;
 };
 
@@ -152,6 +159,13 @@ const startSprint = async (sprintId, currentUser) => {
   sprint.status = "ACTIVE";
   await sprint.save();
 
+  await notifyProjectMembers(
+    sprint.project,
+    "Sprint Started",
+    `Sprint "${sprint.name}" has been started in project "${project?.name || "Project"}" by ${currentUser.name || "a team member"}.`,
+    currentUser._id
+  );
+
   return sprint;
 };
 /**
@@ -194,7 +208,37 @@ const completeSprint = async (sprintId, currentUser) => {
   sprint.status = "COMPLETED";
   await sprint.save();
 
+  await notifyProjectMembers(
+    sprint.project,
+    "Sprint Completed",
+    `Sprint "${sprint.name}" has been completed in project "${project?.name || "Project"}" by ${currentUser.name || "a team member"}.`,
+    currentUser._id
+  );
+
   return sprint;
+};
+
+/**
+ * Helper to notify all active project members about sprint events
+ */
+const notifyProjectMembers = async (projectId, title, message, excludeUserId) => {
+  try {
+    const { createNotification } = require("./notification.service");
+    const members = await ProjectMember.find({ project: projectId, isActive: true });
+    for (const m of members) {
+      const targetUser = m.user ? m.user.toString() : null;
+      if (targetUser && targetUser !== excludeUserId.toString()) {
+        await createNotification({
+          user: targetUser,
+          title,
+          message,
+          type: "SPRINT",
+        });
+      }
+    }
+  } catch (err) {
+    console.error("Failed to notify project members:", err);
+  }
 };
 
 module.exports = {

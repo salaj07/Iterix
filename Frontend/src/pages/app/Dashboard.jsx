@@ -95,13 +95,7 @@ export default function Dashboard() {
             icon={Mail}
             title="Invitations"
             desc={myInvitations.length > 0 ? `${myInvitations.length} pending invitation${myInvitations.length > 1 ? "s" : ""}` : "No pending invitations"}
-            onClick={() => {
-              if (myInvitations.length > 0) {
-                navigate("/onboarding");
-              } else {
-                toast.info("No pending invitations.");
-              }
-            }}
+            onClick={() => navigate("/app/notifications")}
             accent={myInvitations.length > 0}
           />
         </div>
