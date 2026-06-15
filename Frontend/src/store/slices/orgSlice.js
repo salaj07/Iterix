@@ -58,6 +58,19 @@ export const acceptInvitationAsync = createAsyncThunk(
   }
 );
 
+/** Fetch all invitations sent to the current user */
+export const fetchMyInvitations = createAsyncThunk(
+  "org/fetchMyInvitations",
+  async (_, { rejectWithValue }) => {
+    try {
+      const res = await invitationApi.getMyInvitations();
+      return res.data; // { success, data: [...invitations] }
+    } catch (err) {
+      return rejectWithValue(err.response?.data || { message: "Failed to load invitations" });
+    }
+  }
+);
+
 /* ─── Slice ───────────────────────────────────────────────────────────── */
 const slice = createSlice({
   name: "org",
@@ -65,6 +78,7 @@ const slice = createSlice({
     orgs: [], // [{id, workspaceId, name, description, teamSize, ownerId, logo}]
     members: [], // [{id, orgId, name, email, role, avatarColor}]
     invitations: [], // [{id, orgId, name, email, role, status, sentAt}]
+    myInvitations: [], // [{id, name, role, status, sentAt}] - invitations received by user
     loading: false,
     error: null,
   },
@@ -144,7 +158,7 @@ const slice = createSlice({
             name: inv.email.split("@")[0],
             role: inv.role || "MEMBER",
             sentAt: inv.createdAt || Date.now(),
-            status: inv.status || "pending"
+            status: (inv.status || "pending").toLowerCase()
           });
         }
       });
@@ -158,7 +172,20 @@ const slice = createSlice({
           name: inv.email.split("@")[0],
           role: inv.role || "MEMBER",
           sentAt: inv.createdAt || Date.now(),
-          status: inv.status || "pending"
+          status: (inv.status || "pending").toLowerCase()
+        }));
+      });
+
+    /* fetchMyInvitations */
+    builder
+      .addCase(fetchMyInvitations.fulfilled, (state, { payload }) => {
+        state.myInvitations = (payload.data || []).map(inv => ({
+          ...inv,
+          id: inv.id || inv._id,
+          name: inv.workspace?.name || "Workspace",
+          role: inv.role || "MEMBER",
+          sentAt: inv.createdAt || Date.now(),
+          status: (inv.status || "pending").toLowerCase()
         }));
       });
 
@@ -167,7 +194,11 @@ const slice = createSlice({
       .addCase(acceptInvitationAsync.fulfilled, (state, { payload }) => {
         const inv = state.invitations.find(i => i.id === payload.invitationId);
         if (inv) {
-          inv.status = "ACCEPTED";
+          inv.status = "accepted";
+        }
+        const myInv = state.myInvitations.find(i => i.id === payload.invitationId);
+        if (myInv) {
+          myInv.status = "accepted";
         }
       });
   },

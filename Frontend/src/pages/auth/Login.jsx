@@ -11,7 +11,13 @@ import { useGoogleLogin  } from "@react-oauth/google";
 import { sendOtp, googleLoginAsync } from "@/store/slices/authSlice";
 import { fetchWorkspaces } from "@/store/slices/workspaceSlice";
 
-const emailSchema = z.string().email("Please enter a valid email");
+const emailSchema = z
+  .string()
+  .email("Please enter a valid email")
+  .refine(
+    (val) => val.endsWith("@medicaps.ac.in"),
+    "Only Medicaps University email addresses (@medicaps.ac.in) are allowed to log in."
+  );
 
 export default function Login() {
   const dispatch = useDispatch();

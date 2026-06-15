@@ -97,26 +97,23 @@ export default function Workspaces() {
       <Modal
         open={open}
         onClose={() => setOpen(false)}
-        title="Create workspace"
+        title="Workspace Creation"
         footer={
-          <div className="flex justify-end gap-2">
-            <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button onClick={create} disabled={!name.trim() || creating}>
-              {creating ? <Loader2 className="animate-spin" size={14} /> : null}
-              Create
-            </Button>
+          <div className="flex justify-end">
+            <Button onClick={() => setOpen(false)}>Close</Button>
           </div>
         }
       >
-        <div className="space-y-4">
-          <div>
-            <Label>Workspace name</Label>
-            <Input
-              className="mt-1.5" autoFocus value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Acme Studio"
-              onKeyDown={(e) => e.key === "Enter" && create()}
-            />
+        <div className="space-y-4 py-2">
+          <div className="w-12 h-12 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center mb-1">
+            <Building2 size={24} />
+          </div>
+          <h3 className="font-semibold text-base text-foreground">Workspace Creation Restricted</h3>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            Only the community manager can provision new workspaces or assign administrator rights on the platform.
+          </p>
+          <div className="p-3 border border-dashed border-border rounded-lg text-xs text-muted-foreground bg-foreground/[0.01]">
+            If you need an additional workspace or admin permissions for your developer group, please contact the community manager directly.
           </div>
         </div>
       </Modal>

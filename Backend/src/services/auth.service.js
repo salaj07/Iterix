@@ -21,6 +21,10 @@ const sendOTP = async ({ email }) => {
     throw new Error("Email is required");
   }
 
+  if (!email.endsWith("@medicaps.ac.in")) {
+    throw new Error("Only Medicaps University emails (@medicaps.ac.in) are allowed to log in");
+  }
+
   // Generate OTP
   const otp = generateOTP();
 
@@ -160,6 +164,10 @@ const googleLogin = async ({ token }) => {
 
     email = responseData.email;
     name = responseData.name;
+  }
+
+  if (!email.endsWith("@medicaps.ac.in")) {
+    throw new Error("Only Medicaps University emails (@medicaps.ac.in) are allowed to log in");
   }
 
   let user = await User.findOne({ email });

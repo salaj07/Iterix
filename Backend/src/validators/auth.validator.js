@@ -8,7 +8,13 @@ const sendOTPRules = [
     .withMessage("Email is required")
     .isEmail()
     .withMessage("Must be a valid email address")
-    .normalizeEmail(),
+    .normalizeEmail()
+    .custom((value) => {
+      if (!value.endsWith("@medicaps.ac.in")) {
+        throw new Error("Only Medicaps University emails (@medicaps.ac.in) are allowed to log in");
+      }
+      return true;
+    }),
 ];
 
 /** POST /api/auth/verify-otp */
@@ -19,7 +25,13 @@ const verifyOTPRules = [
     .withMessage("Email is required")
     .isEmail()
     .withMessage("Must be a valid email address")
-    .normalizeEmail(),
+    .normalizeEmail()
+    .custom((value) => {
+      if (!value.endsWith("@medicaps.ac.in")) {
+        throw new Error("Only Medicaps University emails (@medicaps.ac.in) are allowed to log in");
+      }
+      return true;
+    }),
 
   body("otp")
     .trim()
