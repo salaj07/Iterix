@@ -11,6 +11,12 @@
 require("dotenv").config();
 const mongoose = require("mongoose");
 const request = require("supertest");
+
+jest.mock("../src/services/email.service", () => ({
+  sendOTPEmail: jest.fn().mockResolvedValue(true),
+  sendInvitationEmail: jest.fn().mockResolvedValue(true),
+}));
+
 const app = require("../src/app");
 
 const TEST_DB_URI =

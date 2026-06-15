@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
@@ -8,7 +8,7 @@ import Button from "@/components/common/Button";
 import Modal from "@/components/common/Modal";
 import Avatar from "@/components/common/Avatar";
 import { roleLabel, roleTone, formatRelative } from "@/lib/format";
-import { inviteMemberAsync, acceptInvitation } from "@/store/slices/orgSlice";
+import { inviteMemberAsync, acceptInvitationAsync, fetchWorkspaceInvitations, fetchMembers } from "@/store/slices/orgSlice";
 import { ROLES } from "@/store/seed";
 
 export default function Teams() {
@@ -19,6 +19,12 @@ export default function Teams() {
 
   const [inviteOpen, setInviteOpen] = useState(false);
   const [form, setForm] = useState({ name: "", email: "", role: ROLES.DEVELOPER });
+
+  useEffect(() => {
+    if (currentWorkspaceId) {
+      dispatch(fetchWorkspaceInvitations(currentWorkspaceId));
+    }
+  }, [dispatch, currentWorkspaceId]);
 
   const send = async () => {
     if (!form.name.trim() || !form.email.trim() || !currentWorkspaceId) return;
@@ -38,9 +44,16 @@ export default function Teams() {
     setInviteOpen(false);
   };
 
-  const accept = (id) => {
-    dispatch(acceptInvitation(id));
-    toast.success("Invitation accepted (mock)");
+  const accept = async (id) => {
+    const result = await dispatch(acceptInvitationAsync(id));
+    if (acceptInvitationAsync.fulfilled.match(result)) {
+      toast.success("Invitation accepted successfully!");
+      if (currentWorkspaceId) {
+        dispatch(fetchMembers(currentWorkspaceId));
+      }
+    } else {
+      toast.error(result.payload?.message || "Failed to accept invitation");
+    }
   };
 
   return (

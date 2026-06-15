@@ -15,6 +15,13 @@ router.post(
   invitationController.inviteMember
 );
 
+// Get invitations sent by a specific workspace
+router.get(
+  "/workspaces/:workspaceId/invitations",
+  protect,
+  invitationController.getWorkspaceInvitations
+);
+
 // Get logged-in user's invitations
 router.get("/invitations", protect, invitationController.getMyInvitations);
 

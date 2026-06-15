@@ -19,3 +19,7 @@ export const acceptInvitation = (invitationId) =>
 /** Reject an invitation */
 export const rejectInvitation = (invitationId) =>
   api.post(`/api/invitations/${invitationId}/reject`);
+
+/** Get all invitations sent by a specific workspace */
+export const getWorkspaceInvitations = (workspaceId) =>
+  api.get(`/api/workspaces/${workspaceId}/invitations`);

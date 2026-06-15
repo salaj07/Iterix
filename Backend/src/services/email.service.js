@@ -1,13 +1,17 @@
 const nodemailer = require("nodemailer");
 
-// Create transporter
+// Create transporter with connection pooling for faster email delivery
 const transporter = nodemailer.createTransport({
-  service: "gmail",
-
+  host: process.env.EMAIL_HOST || "smtp.gmail.com",
+  port: parseInt(process.env.EMAIL_PORT, 10) || 465,
+  secure: process.env.EMAIL_SECURE !== "false", // defaults to true (SSL) for port 465
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS,
   },
+  pool: true, // Use connection pool
+  maxConnections: 5,
+  maxMessages: 100,
 });
 
 /**
@@ -16,17 +20,18 @@ const transporter = nodemailer.createTransport({
  * @param {string} otp
  */
 const sendOTPEmail = async (email, otp) => {
+  const senderEmail = process.env.EMAIL_FROM || process.env.EMAIL_USER;
   const mailOptions = {
-    from: `"SprintOS" <${process.env.EMAIL_USER}>`,
+    from: `"Iterix" <${senderEmail}>`,
     to: email,
 
-    subject: "Your SprintOS Login OTP",
+    subject: "Your Iterix Login OTP",
 
     html: `
       <div style="font-family: Arial, sans-serif; max-width:600px; margin:auto; padding:20px;">
         
         <h2 style="color:#FF6044;">
-          SprintOS Authentication
+          Iterix Authentication
         </h2>
 
         <p>Your One-Time Password (OTP) is:</p>
@@ -56,7 +61,7 @@ const sendOTPEmail = async (email, otp) => {
         <hr />
 
         <small>
-          © SprintOS
+          © Iterix
         </small>
 
       </div>
@@ -67,14 +72,21 @@ const sendOTPEmail = async (email, otp) => {
 };
 
 const sendInvitationEmail = async (email, workspaceName) => {
+  const clientUrl = process.env.CLIENT_URL || "http://localhost:5173";
+  const senderEmail = process.env.EMAIL_FROM || process.env.EMAIL_USER;
   const mailOptions = {
-    from: `"SprintOS" <${process.env.EMAIL_USER}>`,
+    from: `"Iterix" <${senderEmail}>`,
     to: email,
     subject: `Invitation to join ${workspaceName}`,
     html: `
-      <h2>Workspace Invitation</h2>
-      <p>You have been invited to join <b>${workspaceName}</b>.</p>
-      <p>Log in to SprintOS and accept the invitation from your dashboard.</p>
+      <div style="font-family: Arial, sans-serif; max-width:600px; margin:auto; padding:20px; border: 1px solid #eee; border-radius: 8px;">
+        <h2 style="color: #4F46E5;">Workspace Invitation</h2>
+        <p>You have been invited to join the workspace <strong>${workspaceName}</strong> on Iterix.</p>
+        <p style="margin-bottom: 24px;">Please click the button below to log in and accept your invitation from the dashboard:</p>
+        <a href="${clientUrl}" style="background-color: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Join Workspace</a>
+        <hr style="margin-top: 30px; border: none; border-top: 1px solid #eee;" />
+        <small style="color: #666;">If the button above does not work, copy and paste this URL into your browser: <br/>${clientUrl}</small>
+      </div>
     `,
   };
 

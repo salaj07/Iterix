@@ -32,6 +32,32 @@ export const inviteMemberAsync = createAsyncThunk(
   }
 );
 
+/** Fetch all invitations sent by a workspace */
+export const fetchWorkspaceInvitations = createAsyncThunk(
+  "org/fetchWorkspaceInvitations",
+  async (workspaceId, { rejectWithValue }) => {
+    try {
+      const res = await invitationApi.getWorkspaceInvitations(workspaceId);
+      return res.data; // { success, data: [...invitations] }
+    } catch (err) {
+      return rejectWithValue(err.response?.data || { message: "Failed to load invitations" });
+    }
+  }
+);
+
+/** Accept workspace invitation */
+export const acceptInvitationAsync = createAsyncThunk(
+  "org/acceptInvitationAsync",
+  async (invitationId, { rejectWithValue }) => {
+    try {
+      const res = await invitationApi.acceptInvitation(invitationId);
+      return { invitationId, ...res.data }; // { success, message }
+    } catch (err) {
+      return rejectWithValue(err.response?.data || { message: "Failed to accept invitation" });
+    }
+  }
+);
+
 /* ─── Slice ───────────────────────────────────────────────────────────── */
 const slice = createSlice({
   name: "org",
@@ -120,6 +146,28 @@ const slice = createSlice({
             sentAt: inv.createdAt || Date.now(),
             status: inv.status || "pending"
           });
+        }
+      });
+
+    /* fetchWorkspaceInvitations */
+    builder
+      .addCase(fetchWorkspaceInvitations.fulfilled, (state, { payload }) => {
+        state.invitations = (payload.data || []).map(inv => ({
+          ...inv,
+          id: inv.id || inv._id,
+          name: inv.email.split("@")[0],
+          role: inv.role || "MEMBER",
+          sentAt: inv.createdAt || Date.now(),
+          status: inv.status || "pending"
+        }));
+      });
+
+    /* acceptInvitationAsync */
+    builder
+      .addCase(acceptInvitationAsync.fulfilled, (state, { payload }) => {
+        const inv = state.invitations.find(i => i.id === payload.invitationId);
+        if (inv) {
+          inv.status = "ACCEPTED";
         }
       });
   },

@@ -130,9 +130,30 @@ const rejectInvitation = async (invitationId, user) => {
   };
 };
 
+/**
+ * Get invitations sent by a specific workspace (admin-only)
+ */
+const getWorkspaceInvitations = async (workspaceId, adminUser) => {
+  const adminMembership = await WorkspaceMember.findOne({
+    workspace: workspaceId,
+    user: adminUser._id,
+    role: "ADMIN",
+    isActive: true,
+  });
+
+  if (!adminMembership) {
+    throw new Error("Only workspace admins can view invitations");
+  }
+
+  return await Invitation.find({ workspace: workspaceId })
+    .populate("invitedBy", "name email")
+    .sort({ createdAt: -1 });
+};
+
 module.exports = {
   inviteMember,
   getMyInvitations,
   acceptInvitation,
   rejectInvitation,
+  getWorkspaceInvitations,
 };
