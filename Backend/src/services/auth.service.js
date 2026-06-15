@@ -21,8 +21,9 @@ const sendOTP = async ({ email }) => {
     throw new Error("Email is required");
   }
 
-  if (!email.endsWith("@medicaps.ac.in")) {
-    throw new Error("Only Medicaps University emails (@medicaps.ac.in) are allowed to log in");
+  const allowedDomain = process.env.ALLOWED_EMAIL_DOMAIN;
+  if (allowedDomain && !email.endsWith(`@${allowedDomain}`)) {
+    throw new Error(`Only ${allowedDomain} emails are allowed to log in`);
   }
 
   // Generate OTP
@@ -166,8 +167,9 @@ const googleLogin = async ({ token }) => {
     name = responseData.name;
   }
 
-  if (!email.endsWith("@medicaps.ac.in")) {
-    throw new Error("Only Medicaps University emails (@medicaps.ac.in) are allowed to log in");
+  const allowedDomain = process.env.ALLOWED_EMAIL_DOMAIN;
+  if (allowedDomain && !email.endsWith(`@${allowedDomain}`)) {
+    throw new Error(`Only ${allowedDomain} emails are allowed to log in`);
   }
 
   let user = await User.findOne({ email });

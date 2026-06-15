@@ -11,13 +11,7 @@ import { useGoogleLogin  } from "@react-oauth/google";
 import { sendOtp, googleLoginAsync } from "@/store/slices/authSlice";
 import { fetchWorkspaces } from "@/store/slices/workspaceSlice";
 
-const emailSchema = z
-  .string()
-  .email("Please enter a valid email")
-  .refine(
-    (val) => val.endsWith("@medicaps.ac.in"),
-    "Only Medicaps University email addresses (@medicaps.ac.in) are allowed to log in."
-  );
+const emailSchema = z.string().email("Please enter a valid email");
 
 export default function Login() {
   const dispatch = useDispatch();
@@ -87,7 +81,7 @@ export default function Login() {
       toast.success("OTP sent!", { description: `Check your inbox at ${email.trim()}` });
       navigate("/login/otp");
     } else {
-      const msg = result.payload?.message || "Failed to send OTP. Please try again.";
+      const msg = result.payload?.errors?.[0]?.message || result.payload?.message || "Failed to send OTP. Please try again.";
       setErr(msg);
       toast.error(msg);
     }

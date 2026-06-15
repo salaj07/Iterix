@@ -10,8 +10,9 @@ const sendOTPRules = [
     .withMessage("Must be a valid email address")
     .normalizeEmail()
     .custom((value) => {
-      if (!value.endsWith("@medicaps.ac.in")) {
-        throw new Error("Only Medicaps University emails (@medicaps.ac.in) are allowed to log in");
+      const allowedDomain = process.env.ALLOWED_EMAIL_DOMAIN;
+      if (allowedDomain && !value.endsWith(`@${allowedDomain}`)) {
+        throw new Error(`Only ${allowedDomain} emails are allowed to log in`);
       }
       return true;
     }),
@@ -27,8 +28,9 @@ const verifyOTPRules = [
     .withMessage("Must be a valid email address")
     .normalizeEmail()
     .custom((value) => {
-      if (!value.endsWith("@medicaps.ac.in")) {
-        throw new Error("Only Medicaps University emails (@medicaps.ac.in) are allowed to log in");
+      const allowedDomain = process.env.ALLOWED_EMAIL_DOMAIN;
+      if (allowedDomain && !value.endsWith(`@${allowedDomain}`)) {
+        throw new Error(`Only ${allowedDomain} emails are allowed to log in`);
       }
       return true;
     }),
