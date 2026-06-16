@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Search, Sun, Moon, Bell, Menu, ChevronDown, LogOut, User, Check } from "lucide-react";
 import { toggleTheme } from "@/store/slices/themeSlice";
-import { logout } from "@/store/slices/authSlice";
+import { logoutUser } from "@/store/slices/authSlice";
 import Avatar from "@/components/common/Avatar";
 import { formatRelative } from "@/lib/format";
 import { markReadAsync } from "@/store/slices/notificationsSlice";
@@ -136,7 +136,7 @@ export default function Topbar({ onOpenMobileSidebar }) {
                 <button onClick={() => { setProfOpen(false); navigate("/app/settings"); }} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-foreground/5 text-sm">
                   <User size={15} className="text-muted-foreground" /> Profile & Settings
                 </button>
-                <button onClick={() => { dispatch(logout()); navigate("/login"); }} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-foreground/5 text-sm text-red-500">
+                <button onClick={async () => { await dispatch(logoutUser()); navigate("/login"); }} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-foreground/5 text-sm text-red-500">
                   <LogOut size={15} /> Log out
                 </button>
               </motion.div>

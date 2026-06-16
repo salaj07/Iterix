@@ -450,6 +450,56 @@ const updateProject = async (projectId, data, currentUser) => {
   return project;
 };
 
+const deleteProject = async (projectId, currentUser) => {
+  const Task = require("../models/task.model");
+  const Sprint = require("../models/sprint.model");
+  const Comment = require("../models/comment.model");
+  const Activity = require("../models/activity.model");
+
+  const project = await Project.findById(projectId);
+  if (!project) {
+    throw new Error("Project not found");
+  }
+
+  // Check if workspace ADMIN
+  const isAdmin = await WorkspaceMember.findOne({
+    workspace: project.workspace,
+    user: currentUser._id,
+    role: "ADMIN",
+    isActive: true,
+  });
+
+  if (!isAdmin) {
+    // Check if Project Lead (TEAM_LEAD)
+    const isLead = await ProjectMember.findOne({
+      project: projectId,
+      user: currentUser._id,
+      role: "TEAM_LEAD",
+      isActive: true,
+    });
+
+    if (!isLead) {
+      throw new Error("Only workspace admins and project leads can delete this project");
+    }
+  }
+
+  // Delete all tasks and comments
+  const tasks = await Task.find({ project: projectId });
+  const taskIds = tasks.map(t => t._id);
+  await Comment.deleteMany({ task: { $in: taskIds } });
+  await Task.deleteMany({ project: projectId });
+
+  // Delete all sprints
+  await Sprint.deleteMany({ project: projectId });
+
+  // Delete project members and activity logs
+  await ProjectMember.deleteMany({ project: projectId });
+  await Activity.deleteMany({ project: projectId });
+
+  // Delete project itself
+  await Project.findByIdAndDelete(projectId);
+};
+
 module.exports = {
   createProject,
   getUserProjects,
@@ -461,4 +511,5 @@ module.exports = {
   removeProjectMember,
   updateProjectMemberRole,
   updateProject,
+  deleteProject,
 };

@@ -43,3 +43,7 @@ export const archiveProject = (projectId) =>
 /** Update project details */
 export const updateProject = (projectId, data) =>
   api.patch(`/api/projects/${projectId}`, data);
+
+/** Delete a project */
+export const deleteProject = (projectId) =>
+  api.delete(`/api/projects/${projectId}`);

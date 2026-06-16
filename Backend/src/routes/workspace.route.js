@@ -34,4 +34,7 @@ router.patch("/:workspaceId/members/:memberId", protect, workspaceIdRules, valid
 // Remove member from workspace
 router.delete("/:workspaceId/members/:memberId", protect, workspaceIdRules, validate, workspaceController.removeMember);
 
+// Clear workspace data
+router.post("/:workspaceId/clear", protect, workspaceIdRules, validate, workspaceController.clearWorkspaceData);
+
 module.exports = router;

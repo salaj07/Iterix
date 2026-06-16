@@ -139,6 +139,22 @@ const removeMember = async (req, res, next) => {
   }
 };
 
+const clearWorkspaceData = async (req, res, next) => {
+  try {
+    await workspaceService.clearWorkspaceData(
+      req.user,
+      req.params.workspaceId
+    );
+
+    res.status(200).json({
+      success: true,
+      message: "Workspace data cleared successfully",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   createWorkspace,
   getUserWorkspaces,
@@ -148,4 +164,5 @@ module.exports = {
   getWorkspaceMembers,
   updateMemberRole,
   removeMember,
+  clearWorkspaceData,
 };

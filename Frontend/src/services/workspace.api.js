@@ -35,3 +35,7 @@ export const updateWorkspaceMemberRole = (workspaceId, memberId, role) =>
 /** Remove a member from a workspace */
 export const removeWorkspaceMember = (workspaceId, memberId) =>
   api.delete(`/api/workspaces/${workspaceId}/members/${memberId}`);
+
+/** Clear all data inside a workspace */
+export const clearWorkspaceData = (workspaceId) =>
+  api.post(`/api/workspaces/${workspaceId}/clear`);

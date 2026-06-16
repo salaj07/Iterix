@@ -2,6 +2,7 @@ import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import * as taskApi from "@/services/task.api";
 import * as commentApi from "@/services/comment.api";
 import { completeSprintAsync, deleteSprintAsync } from "./sprintsSlice";
+import { clearWorkspaceDataAsync } from "./workspaceSlice";
 
 /* ─── Mapping Helper ────────────────────────────────────────────────── */
 
@@ -340,6 +341,12 @@ const slice = createSlice({
     },
   },
   extraReducers: (builder) => {
+    /* clearWorkspaceDataAsync */
+    builder
+      .addCase(clearWorkspaceDataAsync.fulfilled, (state) => {
+        state.tasks = [];
+      });
+
     /* fetchProjectTasks */
     builder
       .addCase(fetchProjectTasks.pending, (state) => { state.loading = true; state.error = null; })

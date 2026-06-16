@@ -55,6 +55,19 @@ export const deleteWorkspaceAsync = createAsyncThunk(
   }
 );
 
+/** Clear workspace data */
+export const clearWorkspaceDataAsync = createAsyncThunk(
+  "workspace/clearData",
+  async (workspaceId, { rejectWithValue }) => {
+    try {
+      await workspaceApi.clearWorkspaceData(workspaceId);
+      return workspaceId;
+    } catch (err) {
+      return rejectWithValue(err.response?.data || { message: "Failed to clear workspace data" });
+    }
+  }
+);
+
 /* ─── Slice ───────────────────────────────────────────────────────────── */
 const slice = createSlice({
   name: "workspace",
@@ -154,6 +167,12 @@ const slice = createSlice({
           state.currentWorkspaceId = state.workspaces[0]?.id || null;
         }
       });
+
+    /* clearWorkspaceData */
+    builder
+      .addCase(clearWorkspaceDataAsync.pending, (state) => { state.loading = true; })
+      .addCase(clearWorkspaceDataAsync.fulfilled, (state) => { state.loading = false; })
+      .addCase(clearWorkspaceDataAsync.rejected, (state) => { state.loading = false; });
   },
 });
 

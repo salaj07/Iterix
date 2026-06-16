@@ -201,6 +201,20 @@ const updateProject = async (req, res, next) => {
   }
 };
 
+const deleteProject = async (req, res, next) => {
+  try {
+    const { projectId } = req.params;
+    await projectService.deleteProject(projectId, req.user);
+
+    return res.status(200).json({
+      success: true,
+      message: "Project deleted successfully",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   createProject,
   getUserProjects,
@@ -212,4 +226,5 @@ module.exports = {
   removeProjectMember,
   updateProjectMemberRole,
   updateProject,
+  deleteProject,
 };

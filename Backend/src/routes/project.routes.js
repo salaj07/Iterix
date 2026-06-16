@@ -36,4 +36,7 @@ router.patch("/:projectId", protect, projectIdRules, validate, projectController
 // Archive Project
 router.patch("/:projectId/archive", protect, projectIdRules, validate, projectController.archiveProject);
 
+// Delete Project
+router.delete("/:projectId", protect, projectIdRules, validate, projectController.deleteProject);
+
 module.exports = router;

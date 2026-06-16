@@ -177,6 +177,43 @@ const removeMember = async (workspaceId, adminUser, memberId) => {
   }
 };
 
+const clearWorkspaceData = async (currentUser, workspaceId) => {
+  const Project = require("../models/project.model");
+  const ProjectMember = require("../models/projectMember.model");
+  const Task = require("../models/task.model");
+  const Sprint = require("../models/sprint.model");
+  const Comment = require("../models/comment.model");
+  const Activity = require("../models/activity.model");
+
+  // Check if currentUser is ADMIN of the workspace
+  const membership = await WorkspaceMember.findOne({
+    workspace: workspaceId,
+    user: currentUser._id,
+    role: "ADMIN",
+    isActive: true,
+  });
+
+  if (!membership) {
+    throw new Error("Only workspace admins can clear workspace data");
+  }
+
+  // Find all projects in workspace
+  const projects = await Project.find({ workspace: workspaceId });
+  const projectIds = projects.map(p => p._id);
+
+  // Find all tasks in these projects to clear their comments
+  const tasks = await Task.find({ project: { $in: projectIds } });
+  const taskIds = tasks.map(t => t._id);
+
+  // Perform deletions in order
+  await Comment.deleteMany({ task: { $in: taskIds } });
+  await Task.deleteMany({ project: { $in: projectIds } });
+  await Sprint.deleteMany({ project: { $in: projectIds } });
+  await ProjectMember.deleteMany({ project: { $in: projectIds } });
+  await Activity.deleteMany({ project: { $in: projectIds } });
+  await Project.deleteMany({ workspace: workspaceId });
+};
+
 module.exports = {
   createWorkspace,
   getUserWorkspaces,
@@ -186,4 +223,5 @@ module.exports = {
   getWorkspaceMembers,
   updateMemberRole,
   removeMember,
+  clearWorkspaceData,
 };

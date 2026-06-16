@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import * as projectApi from "@/services/project.api";
+import { clearWorkspaceDataAsync } from "./workspaceSlice";
 
 /* ─── Async Thunks ────────────────────────────────────────────────────── */
 
@@ -38,6 +39,19 @@ export const archiveProjectAsync = createAsyncThunk(
       return res.data;
     } catch (err) {
       return rejectWithValue(err.response?.data || { message: "Failed to archive project" });
+    }
+  }
+);
+
+/** Delete a project */
+export const deleteProjectAsync = createAsyncThunk(
+  "projects/delete",
+  async (projectId, { rejectWithValue }) => {
+    try {
+      const res = await projectApi.deleteProject(projectId);
+      return { projectId, data: res.data };
+    } catch (err) {
+      return rejectWithValue(err.response?.data || { message: "Failed to delete project" });
     }
   }
 );
@@ -261,6 +275,35 @@ const slice = createSlice({
             };
           }
         }
+      });
+
+    /* deleteProjectAsync */
+    builder
+      .addCase(deleteProjectAsync.pending, (state) => { state.loading = true; })
+      .addCase(deleteProjectAsync.fulfilled, (state, { payload }) => {
+        state.loading = false;
+        state.projects = state.projects.filter(p => p.id !== payload.projectId && p._id !== payload.projectId);
+        if (state.currentProjectId === payload.projectId) {
+          state.currentProjectId = state.projects[0]?.id || null;
+          if (state.currentProjectId) {
+            localStorage.setItem(`Iterix-current-project-global`, state.currentProjectId);
+          } else {
+            localStorage.removeItem(`Iterix-current-project-global`);
+          }
+        }
+      })
+      .addCase(deleteProjectAsync.rejected, (state, { payload }) => {
+        state.loading = false;
+        state.error = payload?.message || "Failed to delete project";
+      });
+
+    /* clearWorkspaceDataAsync */
+    builder
+      .addCase(clearWorkspaceDataAsync.fulfilled, (state) => {
+        state.projects = [];
+        state.currentProjectId = null;
+        state.projectMembers = [];
+        localStorage.removeItem(`Iterix-current-project-global`);
       });
 
     /* updateProject */
