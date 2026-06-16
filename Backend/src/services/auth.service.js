@@ -158,7 +158,7 @@ const googleLogin = async ({ token }) => {
     );
 
     const responseData = await response.json();
-    console.log(responseData)
+    // console.log(responseData)
     if (!responseData || !responseData.email || !responseData.name) {
       throw new Error("Invalid Google token");
     }

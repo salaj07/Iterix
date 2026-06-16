@@ -66,10 +66,10 @@ export default function Teams() {
   const [projMemForm, setProjMemForm] = useState({ userId: "", role: "DEVELOPER" });
 
   useEffect(() => {
-    if (currentWorkspaceId) {
+    if (currentWorkspaceId && isWorkspaceAdmin) {
       dispatch(fetchWorkspaceInvitations(currentWorkspaceId));
     }
-  }, [dispatch, currentWorkspaceId]);
+  }, [dispatch, currentWorkspaceId, isWorkspaceAdmin]);
 
   useEffect(() => {
     if (currentProjectId) {
