@@ -87,7 +87,11 @@ const slice = createSlice({
       .addCase(fetchNotifications.pending, (state) => { state.loading = true; state.error = null; })
       .addCase(fetchNotifications.fulfilled, (state, { payload }) => {
         state.loading = false;
-        state.items = payload.data || [];
+        state.items = (payload.data || []).map(n => ({
+          ...n,
+          read: n.isRead !== undefined ? n.isRead : n.read,
+          id: n.id || n._id,
+        }));
       })
       .addCase(fetchNotifications.rejected, (state, { payload }) => {
         state.loading = false;
@@ -98,8 +102,14 @@ const slice = createSlice({
     builder
       .addCase(markReadAsync.fulfilled, (state, { payload }) => {
         const updated = payload.data;
-        const idx = state.items.findIndex((i) => i._id === updated._id);
-        if (idx !== -1) state.items[idx] = updated;
+        if (!updated) return;
+        const mapped = {
+          ...updated,
+          read: updated.isRead !== undefined ? updated.isRead : updated.read,
+          id: updated.id || updated._id,
+        };
+        const idx = state.items.findIndex((i) => i._id === mapped._id || i.id === mapped.id);
+        if (idx !== -1) state.items[idx] = mapped;
       });
 
     /* markAllRead */

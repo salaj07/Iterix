@@ -8,7 +8,7 @@ import { GlassCard } from "@/components/common/Primitives";
 import Button from "@/components/common/Button";
 import Modal from "@/components/common/Modal";
 import { Input, Label, Textarea } from "@/components/common/Primitives";
-import { fetchProjects, createProjectAsync } from "@/store/slices/projectsSlice";
+import { fetchProjects, createProjectAsync, setCurrentProjectId } from "@/store/slices/projectsSlice";
 import { AvatarStack } from "@/components/common/Avatar";
 
 export default function Projects() {
@@ -16,9 +16,23 @@ export default function Projects() {
   const user = useSelector((s) => s.auth.user);
   const { projects, loading } = useSelector((s) => s.projects);
   const currentWorkspaceId = useSelector((s) => s.workspace.currentWorkspaceId);
+  const workspaces = useSelector((s) => s.workspace.workspaces);
+  const currentWs = workspaces.find((w) => w.id === currentWorkspaceId || w._id === currentWorkspaceId);
+  const isWorkspaceAdmin = currentWs?.role === "ADMIN";
   const [open, setOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [form, setForm] = useState({ name: "", key: "", description: "" });
+
+  const ProjectSkeleton = () => (
+    <div className="glass p-5 h-40 animate-pulse flex flex-col justify-between">
+      <div>
+        <div className="h-3 w-12 bg-foreground/10 rounded" />
+        <div className="h-5 w-32 bg-foreground/10 rounded mt-3" />
+        <div className="h-3 w-48 bg-foreground/10 rounded mt-2" />
+      </div>
+      <div className="h-3 w-24 bg-foreground/10 rounded" />
+    </div>
+  );
 
   // Fetch projects from API on mount
   useEffect(() => {
@@ -66,12 +80,14 @@ export default function Projects() {
           <h1 className="font-display text-3xl font-bold">Projects</h1>
           <p className="text-sm text-muted-foreground mt-1">All projects across your workspace.</p>
         </div>
-        <Button onClick={() => setOpen(true)}><Plus size={16} /> New project</Button>
+        {isWorkspaceAdmin && <Button onClick={() => setOpen(true)}><Plus size={16} /> New project</Button>}
       </div>
 
       {loading && filteredProjects.length === 0 ? (
-        <div className="flex justify-center py-20">
-          <Loader2 className="animate-spin text-muted-foreground" size={24} />
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <ProjectSkeleton />
+          <ProjectSkeleton />
+          <ProjectSkeleton />
         </div>
       ) : filteredProjects.length === 0 ? (
         <GlassCard className="py-20 text-center">
@@ -80,14 +96,14 @@ export default function Projects() {
           </div>
           <h3 className="font-display font-semibold text-lg">No projects yet</h3>
           <p className="text-sm text-muted-foreground mt-1">Create your first project to start shipping.</p>
-          <div className="mt-5"><Button onClick={() => setOpen(true)}><Plus size={16} /> Create project</Button></div>
+          {isWorkspaceAdmin && <div className="mt-5"><Button onClick={() => setOpen(true)}><Plus size={16} /> Create project</Button></div>}
         </GlassCard>
       ) : (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredProjects.map((p) => {
             const id = p._id || p.id;
             return (
-              <Link key={id} to={`/app/projects/${id}`}>
+              <Link key={id} to={`/app/projects/${id}`} onClick={() => dispatch(setCurrentProjectId(id))}>
                 <motion.div whileHover={{ y: -3 }} transition={{ type: "spring", stiffness: 300 }} className="glass p-5 h-full">
                   <div className="flex items-center justify-between">
                     <div className="text-[11px] tracking-wider font-semibold text-muted-foreground">{p.key}</div>

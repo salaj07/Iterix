@@ -1,6 +1,8 @@
 const Sprint = require("../models/sprint.model");
 const Project = require("../models/project.model");
 const ProjectMember = require("../models/projectMember.model");
+const WorkspaceMember = require("../models/workspaceMember.model");
+const Task = require("../models/task.model");
 
 /**
  * Create Sprint
@@ -15,16 +17,25 @@ const createSprint = async (data, currentUser) => {
     throw new Error("Project not found");
   }
 
-  // Check TEAM_LEAD access
-  const membership = await ProjectMember.findOne({
-    project: projectId,
+  // Check TEAM_LEAD or Workspace ADMIN access
+  const isAdmin = await WorkspaceMember.findOne({
+    workspace: project.workspace,
     user: currentUser._id,
-    role: "TEAM_LEAD",
+    role: "ADMIN",
     isActive: true,
   });
 
-  if (!membership) {
-    throw new Error("Only TEAM_LEAD can create sprints");
+  if (!isAdmin) {
+    const membership = await ProjectMember.findOne({
+      project: projectId,
+      user: currentUser._id,
+      role: "TEAM_LEAD",
+      isActive: true,
+    });
+
+    if (!membership) {
+      throw new Error("Only TEAM_LEAD can create sprints");
+    }
   }
 
   // Prevent duplicate sprint names
@@ -50,6 +61,13 @@ const createSprint = async (data, currentUser) => {
     createdBy: currentUser._id,
   });
 
+  await notifyProjectMembers(
+    projectId,
+    "New Sprint Created",
+    `Sprint "${name}" has been planned in project "${project.name}" by ${currentUser.name || "a team member"}.`,
+    currentUser._id
+  );
+
   return sprint;
 };
 
@@ -57,14 +75,29 @@ const createSprint = async (data, currentUser) => {
  * Get all sprints for a project
  */
 const getProjectSprints = async (projectId, currentUser) => {
-  const membership = await ProjectMember.findOne({
-    project: projectId,
+  const project = await Project.findById(projectId);
+  if (!project) {
+    throw new Error("Project not found");
+  }
+
+  // Check if workspace ADMIN
+  const isAdmin = await WorkspaceMember.findOne({
+    workspace: project.workspace,
     user: currentUser._id,
+    role: "ADMIN",
     isActive: true,
   });
 
-  if (!membership) {
-    throw new Error("Access denied");
+  if (!isAdmin) {
+    const membership = await ProjectMember.findOne({
+      project: projectId,
+      user: currentUser._id,
+      isActive: true,
+    });
+
+    if (!membership) {
+      throw new Error("Access denied");
+    }
   }
 
   return await Sprint.find({ project: projectId }).sort({
@@ -88,16 +121,26 @@ const startSprint = async (sprintId, currentUser) => {
     throw new Error("Only planned sprints can be started");
   }
 
-  // Check if current user is TEAM_LEAD
-  const membership = await ProjectMember.findOne({
-    project: sprint.project,
+  // Check if current user is TEAM_LEAD or Workspace ADMIN
+  const project = await Project.findById(sprint.project);
+  const isAdmin = project && await WorkspaceMember.findOne({
+    workspace: project.workspace,
     user: currentUser._id,
-    role: "TEAM_LEAD",
+    role: "ADMIN",
     isActive: true,
   });
 
-  if (!membership) {
-    throw new Error("Only TEAM_LEAD can start a sprint");
+  if (!isAdmin) {
+    const membership = await ProjectMember.findOne({
+      project: sprint.project,
+      user: currentUser._id,
+      role: "TEAM_LEAD",
+      isActive: true,
+    });
+
+    if (!membership) {
+      throw new Error("Only TEAM_LEAD can start a sprint");
+    }
   }
 
   // Ensure no other ACTIVE sprint exists
@@ -117,6 +160,13 @@ const startSprint = async (sprintId, currentUser) => {
   sprint.status = "ACTIVE";
   await sprint.save();
 
+  await notifyProjectMembers(
+    sprint.project,
+    "Sprint Started",
+    `Sprint "${sprint.name}" has been started in project "${project?.name || "Project"}" by ${currentUser.name || "a team member"}.`,
+    currentUser._id
+  );
+
   return sprint;
 };
 /**
@@ -134,22 +184,110 @@ const completeSprint = async (sprintId, currentUser) => {
     throw new Error("Only active sprints can be completed");
   }
 
-  // Check TEAM_LEAD permission
-  const membership = await ProjectMember.findOne({
-    project: sprint.project,
+  // Check TEAM_LEAD or Workspace ADMIN permission
+  const project = await Project.findById(sprint.project);
+  const isAdmin = project && await WorkspaceMember.findOne({
+    workspace: project.workspace,
     user: currentUser._id,
-    role: "TEAM_LEAD",
+    role: "ADMIN",
     isActive: true,
   });
 
-  if (!membership) {
-    throw new Error("Only TEAM_LEAD can complete a sprint");
+  if (!isAdmin) {
+    const membership = await ProjectMember.findOne({
+      project: sprint.project,
+      user: currentUser._id,
+      role: "TEAM_LEAD",
+      isActive: true,
+    });
+
+    if (!membership) {
+      throw new Error("Only TEAM_LEAD can complete a sprint");
+    }
   }
 
   sprint.status = "COMPLETED";
   await sprint.save();
 
+  // Rollover incomplete tasks to backlog (set sprint = null)
+  await Task.updateMany(
+    { sprint: sprintId, status: { $ne: "Done" } },
+    { sprint: null }
+  );
+
+  await notifyProjectMembers(
+    sprint.project,
+    "Sprint Completed",
+    `Sprint "${sprint.name}" has been completed in project "${project?.name || "Project"}" by ${currentUser.name || "a team member"}.`,
+    currentUser._id
+  );
+
   return sprint;
+};
+
+/**
+ * Delete Sprint
+ */
+const deleteSprint = async (sprintId, currentUser) => {
+  const sprint = await Sprint.findById(sprintId);
+  if (!sprint) {
+    throw new Error("Sprint not found");
+  }
+
+  // Check TEAM_LEAD or Workspace ADMIN permission
+  const project = await Project.findById(sprint.project);
+  const isAdmin = project && await WorkspaceMember.findOne({
+    workspace: project.workspace,
+    user: currentUser._id,
+    role: "ADMIN",
+    isActive: true,
+  });
+
+  if (!isAdmin) {
+    const membership = await ProjectMember.findOne({
+      project: sprint.project,
+      user: currentUser._id,
+      role: "TEAM_LEAD",
+      isActive: true,
+    });
+
+    if (!membership) {
+      throw new Error("Only Project Leads can delete a sprint");
+    }
+  }
+
+  // Reset tasks assigned to this sprint to null
+  await Task.updateMany(
+    { sprint: sprintId },
+    { sprint: null }
+  );
+
+  // Delete the sprint
+  await Sprint.findByIdAndDelete(sprintId);
+  return { success: true, sprintId };
+};
+
+/**
+ * Helper to notify all active project members about sprint events
+ */
+const notifyProjectMembers = async (projectId, title, message, excludeUserId) => {
+  try {
+    const { createNotification } = require("./notification.service");
+    const members = await ProjectMember.find({ project: projectId, isActive: true });
+    for (const m of members) {
+      const targetUser = m.user ? m.user.toString() : null;
+      if (targetUser && targetUser !== excludeUserId.toString()) {
+        await createNotification({
+          user: targetUser,
+          title,
+          message,
+          type: "SPRINT",
+        });
+      }
+    }
+  } catch (err) {
+    console.error("Failed to notify project members:", err);
+  }
 };
 
 module.exports = {
@@ -157,4 +295,5 @@ module.exports = {
   getProjectSprints,
   startSprint,
   completeSprint,
+  deleteSprint,
 };

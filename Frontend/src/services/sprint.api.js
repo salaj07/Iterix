@@ -19,3 +19,7 @@ export const startSprint = (sprintId) =>
 /** Complete a sprint (changes status to "completed") */
 export const completeSprint = (sprintId) =>
   api.patch(`/api/sprints/${sprintId}/complete`);
+
+/** Delete a sprint */
+export const deleteSprint = (sprintId) =>
+  api.delete(`/api/sprints/${sprintId}`);

@@ -8,7 +8,14 @@ const sendOTPRules = [
     .withMessage("Email is required")
     .isEmail()
     .withMessage("Must be a valid email address")
-    .normalizeEmail(),
+    .normalizeEmail()
+    .custom((value) => {
+      const allowedDomain = process.env.ALLOWED_EMAIL_DOMAIN;
+      if (allowedDomain && !value.endsWith(`@${allowedDomain}`)) {
+        throw new Error(`Only ${allowedDomain} emails are allowed to log in`);
+      }
+      return true;
+    }),
 ];
 
 /** POST /api/auth/verify-otp */
@@ -19,7 +26,14 @@ const verifyOTPRules = [
     .withMessage("Email is required")
     .isEmail()
     .withMessage("Must be a valid email address")
-    .normalizeEmail(),
+    .normalizeEmail()
+    .custom((value) => {
+      const allowedDomain = process.env.ALLOWED_EMAIL_DOMAIN;
+      if (allowedDomain && !value.endsWith(`@${allowedDomain}`)) {
+        throw new Error(`Only ${allowedDomain} emails are allowed to log in`);
+      }
+      return true;
+    }),
 
   body("otp")
     .trim()

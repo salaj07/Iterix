@@ -1,10 +1,12 @@
 import { useParams, Link } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { setCurrentProjectId, updateProjectAsync, fetchProjectMembers } from "@/store/slices/projectsSlice";
 import { motion } from "framer-motion";
-import { ArrowLeft, Plus, Clock, RotateCcw, Archive } from "lucide-react";
+import { ArrowLeft, Plus, Clock, RotateCcw, Archive, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { GlassCard, Badge } from "@/components/common/Primitives";
+import { GlassCard, Badge, Input, Label, Textarea } from "@/components/common/Primitives";
+import Modal from "@/components/common/Modal";
 import Button from "@/components/common/Button";
 import Avatar from "@/components/common/Avatar";
 import KanbanBoard from "@/components/kanban/KanbanBoard";
@@ -16,15 +18,72 @@ import { cn } from "@/lib/utils";
 
 export default function ProjectDetail() {
   const { id } = useParams();
-  const project = useSelector(s => s.projects.projects.find(p => p.id === id || p._id === id));
-  const members = useSelector(s => s.org.members);
-  const sprints = useSelector(s => s.sprints.sprints.filter(s => s.projectId === id));
-  const tasks = useSelector(s => s.tasks.tasks.filter(t => t.projectId === id));
-  const activeTasks = tasks.filter(t => !t.archived);
+  const project = useSelector(s => (s.projects.projects || []).find(p => p && (p.id === id || p._id === id)));
+  const members = useSelector(s => s.org.members || []);
+  const projectMembers = useSelector(s => s.projects.projectMembers || []);
+  const sprints = useSelector(s => (s.sprints.sprints || []).filter(s => s && s.projectId === id));
+  const tasks = useSelector(s => (s.tasks.tasks || []).filter(t => t && t.projectId === id));
+  const activeTasks = tasks.filter(t => t && !t.archived);
   const dispatch = useDispatch();
   const [tab, setTab] = useState("overview");
   const [createOpen, setCreateOpen] = useState(false);
   const [createStatus, setCreateStatus] = useState("Backlog");
+
+  useEffect(() => {
+    if (id) {
+      dispatch(setCurrentProjectId(id));
+      dispatch(fetchProjectMembers(id));
+    }
+  }, [dispatch, id]);
+
+  const user = useSelector(s => s.auth.user);
+  const myWorkspaceMember = members.find(m => m && m.id === user?.id);
+  const isWorkspaceAdmin = myWorkspaceMember?.role === "ADMIN";
+  const myProjectMember = projectMembers.find(pm => pm && (pm.id === user?.id || pm.userId === user?.id || (pm.user && pm.user._id === user?.id)));
+  const isProjectLead = project && (
+    project.memberRole === "TEAM_LEAD" ||
+    myProjectMember?.role === "TEAM_LEAD" ||
+    String(project.teamLeadId) === String(user?.id) ||
+    String(project.createdBy) === String(user?.id)
+  );
+  const canEditProject = isWorkspaceAdmin || isProjectLead;
+
+  const [editOpen, setEditOpen] = useState(false);
+  const [editForm, setEditForm] = useState({ name: "", key: "", description: "" });
+  const [updating, setUpdating] = useState(false);
+
+  useEffect(() => {
+    if (project) {
+      setEditForm({
+        name: project.name || "",
+        key: project.key || project.projectKey || "",
+        description: project.description || "",
+      });
+    }
+  }, [project]);
+
+  const handleSaveProject = async () => {
+    if (!editForm.name.trim() || !editForm.key.trim()) {
+      toast.error("Name and key are required");
+      return;
+    }
+    setUpdating(true);
+    const result = await dispatch(updateProjectAsync({
+      projectId: id,
+      data: {
+        name: editForm.name.trim(),
+        key: editForm.key.trim().toUpperCase(),
+        description: editForm.description.trim()
+      }
+    }));
+    if (updateProjectAsync.fulfilled.match(result)) {
+      toast.success("Project updated successfully!");
+      setEditOpen(false);
+    } else {
+      toast.error(result.payload?.message || "Failed to update project");
+    }
+    setUpdating(false);
+  };
 
   if (!project) {
     return (
@@ -49,6 +108,9 @@ export default function ProjectDetail() {
           <p className="text-sm text-muted-foreground mt-1.5 max-w-xl">{project.description || "No description"}</p>
         </div>
         <div className="flex items-center gap-2">
+          {canEditProject && (
+            <Button variant="outline" onClick={() => setEditOpen(true)}>Edit project</Button>
+          )}
           <Button variant="outline" onClick={() => { setCreateStatus("Backlog"); setCreateOpen(true); }}><Plus size={15}/> New task</Button>
         </div>
       </div>
@@ -213,8 +275,44 @@ export default function ProjectDetail() {
           )}
         </GlassCard>
       )}
-
       <CreateTaskModal open={createOpen} onClose={() => setCreateOpen(false)} projectId={id} defaultStatus={createStatus} />
+
+      <Modal
+        open={editOpen}
+        onClose={() => setEditOpen(false)}
+        title="Edit project"
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => setEditOpen(false)}>Cancel</Button>
+            <Button onClick={handleSaveProject} disabled={!editForm.name.trim() || updating}>
+              {updating ? <Loader2 className="animate-spin" size={14} /> : null}
+              Save changes
+            </Button>
+          </div>
+        }
+      >
+        <div className="space-y-4">
+          <div className="grid grid-cols-3 gap-3">
+            <div className="col-span-2">
+              <Label>Name</Label>
+              <Input className="mt-1.5" autoFocus value={editForm.name}
+                onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                placeholder="Project Name" />
+            </div>
+            <div>
+              <Label>Key</Label>
+              <Input className="mt-1.5" maxLength={10} value={editForm.key}
+                onChange={(e) => setEditForm({ ...editForm, key: e.target.value.toUpperCase() })}
+                placeholder="KEY" />
+            </div>
+          </div>
+          <div>
+            <Label>Description</Label>
+            <Textarea className="mt-1.5" value={editForm.description}
+              onChange={(e) => setEditForm({ ...editForm, description: e.target.value })} rows={3} />
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

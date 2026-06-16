@@ -17,6 +17,18 @@ export default function Workspaces() {
   const [name, setName] = useState("");
   const [creating, setCreating] = useState(false);
 
+  const WorkspaceSkeleton = () => (
+    <div className="glass p-5 h-[154px] animate-pulse flex flex-col justify-between text-left">
+      <div className="flex justify-between items-start">
+        <div className="w-11 h-11 rounded-[12px] bg-foreground/10" />
+      </div>
+      <div>
+        <div className="h-5 w-32 bg-foreground/10 rounded" />
+        <div className="h-3.5 w-24 bg-foreground/10 rounded mt-2" />
+      </div>
+    </div>
+  );
+
   // Fetch workspaces from API on mount
   useEffect(() => {
     dispatch(fetchWorkspaces());
@@ -52,8 +64,10 @@ export default function Workspaces() {
       </div>
 
       {loading && workspaces.length === 0 ? (
-        <div className="flex justify-center py-20">
-          <Loader2 className="animate-spin text-muted-foreground" size={24} />
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <WorkspaceSkeleton />
+          <WorkspaceSkeleton />
+          <WorkspaceSkeleton />
         </div>
       ) : (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -97,26 +111,23 @@ export default function Workspaces() {
       <Modal
         open={open}
         onClose={() => setOpen(false)}
-        title="Create workspace"
+        title="Workspace Creation"
         footer={
-          <div className="flex justify-end gap-2">
-            <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button onClick={create} disabled={!name.trim() || creating}>
-              {creating ? <Loader2 className="animate-spin" size={14} /> : null}
-              Create
-            </Button>
+          <div className="flex justify-end">
+            <Button onClick={() => setOpen(false)}>Close</Button>
           </div>
         }
       >
-        <div className="space-y-4">
-          <div>
-            <Label>Workspace name</Label>
-            <Input
-              className="mt-1.5" autoFocus value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Acme Studio"
-              onKeyDown={(e) => e.key === "Enter" && create()}
-            />
+        <div className="space-y-4 py-2">
+          <div className="w-12 h-12 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center mb-1">
+            <Building2 size={24} />
+          </div>
+          <h3 className="font-semibold text-base text-foreground">Workspace Creation Restricted</h3>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            Only the community manager can provision new workspaces or assign administrator rights on the platform.
+          </p>
+          <div className="p-3 border border-dashed border-border rounded-lg text-xs text-muted-foreground bg-foreground/[0.01]">
+            If you need an additional workspace or admin permissions for your developer group, please contact the community manager directly.
           </div>
         </div>
       </Modal>

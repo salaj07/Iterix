@@ -35,4 +35,7 @@ router.patch("/:taskId/request-changes", protect, taskIdRules, validate, taskCon
 // Update Task
 router.patch("/:taskId", protect, taskIdRules, validate, taskController.updateTask);
 
+// Delete Task
+router.delete("/:taskId", protect, taskIdRules, validate, taskController.deleteTask);
+
 module.exports = router;

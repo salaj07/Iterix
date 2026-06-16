@@ -21,6 +21,11 @@ const sendOTP = async ({ email }) => {
     throw new Error("Email is required");
   }
 
+  const allowedDomain = process.env.ALLOWED_EMAIL_DOMAIN;
+  if (allowedDomain && !email.endsWith(`@${allowedDomain}`)) {
+    throw new Error(`Only ${allowedDomain} emails are allowed to log in`);
+  }
+
   // Generate OTP
   const otp = generateOTP();
 
@@ -160,6 +165,11 @@ const googleLogin = async ({ token }) => {
 
     email = responseData.email;
     name = responseData.name;
+  }
+
+  const allowedDomain = process.env.ALLOWED_EMAIL_DOMAIN;
+  if (allowedDomain && !email.endsWith(`@${allowedDomain}`)) {
+    throw new Error(`Only ${allowedDomain} emails are allowed to log in`);
   }
 
   let user = await User.findOne({ email });

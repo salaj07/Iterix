@@ -27,3 +27,11 @@ export const deleteWorkspace = (workspaceId) =>
 /** Get all members of a workspace */
 export const getWorkspaceMembers = (workspaceId) =>
   api.get(`/api/workspaces/${workspaceId}/members`);
+
+/** Update a workspace member's role */
+export const updateWorkspaceMemberRole = (workspaceId, memberId, role) =>
+  api.patch(`/api/workspaces/${workspaceId}/members/${memberId}`, { role });
+
+/** Remove a member from a workspace */
+export const removeWorkspaceMember = (workspaceId, memberId) =>
+  api.delete(`/api/workspaces/${workspaceId}/members/${memberId}`);

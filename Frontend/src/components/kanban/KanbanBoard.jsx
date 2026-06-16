@@ -12,15 +12,33 @@ import { Badge } from "@/components/common/Primitives";
 import { priorityTone, typeTone, formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-export default function KanbanBoard({ projectId = null, onCreateTask }) {
+export default function KanbanBoard({ projectId = null, sprintId = undefined, onCreateTask }) {
   const dispatch = useDispatch();
   const user = useSelector(s => s.auth.user);
   const allTasks = useSelector(s => s.tasks.tasks);
   const members = useSelector(s => s.org.members);
 
-  const visible = (projectId ? allTasks.filter(t => t.projectId === projectId) : allTasks).filter(t => !t.archived);
+  const visible = (projectId ? allTasks.filter(t => t.projectId === projectId) : allTasks)
+    .filter(t => !t.archived)
+    .filter(t => {
+      if (sprintId === undefined) return true;
+      if (sprintId === "backlog" || sprintId === null) return !t.sprintId;
+      return t.sprintId === sprintId;
+    });
   const tasks = visible;
-  const grouped = STATUSES.reduce((acc, s) => { acc[s] = tasks.filter(t => t.status === s); return acc; }, {});
+  const PRIORITY_ORDER = { Urgent: 4, High: 3, Medium: 2, Low: 1 };
+  const grouped = STATUSES.reduce((acc, s) => {
+    const filtered = tasks.filter(t => t.status === s);
+    acc[s] = [...filtered].sort((a, b) => {
+      const pA = PRIORITY_ORDER[a.priority] || 2;
+      const pB = PRIORITY_ORDER[b.priority] || 2;
+      if (pB !== pA) return pB - pA;
+      const tA = new Date(a.createdAt || 0).getTime();
+      const tB = new Date(b.createdAt || 0).getTime();
+      return tB - tA;
+    });
+    return acc;
+  }, {});
 
   const onDragEnd = (result) => {
     const { destination, source, draggableId } = result;

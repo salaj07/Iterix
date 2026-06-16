@@ -16,6 +16,8 @@ const notificationSchema = new mongoose.Schema(
         "TASK_REJECTED",
         "COMMENT",
         "INVITATION",
+        "SPRINT",
+        "MEMBER_JOINED",
       ],
     },
     isRead: {

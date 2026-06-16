@@ -32,6 +32,71 @@ export const inviteMemberAsync = createAsyncThunk(
   }
 );
 
+/** Fetch all invitations sent by a workspace */
+export const fetchWorkspaceInvitations = createAsyncThunk(
+  "org/fetchWorkspaceInvitations",
+  async (workspaceId, { rejectWithValue }) => {
+    try {
+      const res = await invitationApi.getWorkspaceInvitations(workspaceId);
+      return res.data; // { success, data: [...invitations] }
+    } catch (err) {
+      return rejectWithValue(err.response?.data || { message: "Failed to load invitations" });
+    }
+  }
+);
+
+/** Accept workspace invitation */
+export const acceptInvitationAsync = createAsyncThunk(
+  "org/acceptInvitationAsync",
+  async (invitationId, { rejectWithValue }) => {
+    try {
+      const res = await invitationApi.acceptInvitation(invitationId);
+      return { invitationId, ...res.data }; // { success, message }
+    } catch (err) {
+      return rejectWithValue(err.response?.data || { message: "Failed to accept invitation" });
+    }
+  }
+);
+
+/** Fetch all invitations sent to the current user */
+export const fetchMyInvitations = createAsyncThunk(
+  "org/fetchMyInvitations",
+  async (_, { rejectWithValue }) => {
+    try {
+      const res = await invitationApi.getMyInvitations();
+      return res.data; // { success, data: [...invitations] }
+    } catch (err) {
+      return rejectWithValue(err.response?.data || { message: "Failed to load invitations" });
+    }
+  }
+);
+
+/** Update workspace member role */
+export const updateMemberRoleAsync = createAsyncThunk(
+  "org/updateMemberRole",
+  async ({ workspaceId, memberId, role }, { rejectWithValue }) => {
+    try {
+      const res = await workspaceApi.updateWorkspaceMemberRole(workspaceId, memberId, role);
+      return { memberId, role, ...res.data };
+    } catch (err) {
+      return rejectWithValue(err.response?.data || { message: "Failed to update member role" });
+    }
+  }
+);
+
+/** Remove member from workspace */
+export const removeMemberAsync = createAsyncThunk(
+  "org/removeMember",
+  async ({ workspaceId, memberId }, { rejectWithValue }) => {
+    try {
+      await workspaceApi.removeWorkspaceMember(workspaceId, memberId);
+      return { memberId };
+    } catch (err) {
+      return rejectWithValue(err.response?.data || { message: "Failed to remove member" });
+    }
+  }
+);
+
 /* ─── Slice ───────────────────────────────────────────────────────────── */
 const slice = createSlice({
   name: "org",
@@ -39,6 +104,7 @@ const slice = createSlice({
     orgs: [], // [{id, workspaceId, name, description, teamSize, ownerId, logo}]
     members: [], // [{id, orgId, name, email, role, avatarColor}]
     invitations: [], // [{id, orgId, name, email, role, status, sentAt}]
+    myInvitations: [], // [{id, name, role, status, sentAt}] - invitations received by user
     loading: false,
     error: null,
   },
@@ -96,11 +162,16 @@ const slice = createSlice({
       .addCase(fetchMembers.fulfilled, (state, { payload }) => {
         state.loading = false;
         const colors = ["#FF6044", "#A79277", "#6b5b47", "#8a7a63", "#d14a30"];
-        state.members = (payload.data || []).map((m, idx) => ({
-          ...m,
-          id: m.id || m._id,
-          avatarColor: m.avatarColor || colors[idx % colors.length]
-        }));
+        state.members = (payload.data || []).map((m, idx) => {
+          let role = m.role;
+          if (role === "MEMBER") role = "DEVELOPER";
+          return {
+            ...m,
+            id: m.id || m._id,
+            role,
+            avatarColor: m.avatarColor || colors[idx % colors.length]
+          };
+        });
       })
       .addCase(fetchMembers.rejected, (state, { payload }) => {
         state.loading = false;
@@ -118,9 +189,63 @@ const slice = createSlice({
             name: inv.email.split("@")[0],
             role: inv.role || "MEMBER",
             sentAt: inv.createdAt || Date.now(),
-            status: inv.status || "pending"
+            status: (inv.status || "pending").toLowerCase()
           });
         }
+      });
+
+    /* fetchWorkspaceInvitations */
+    builder
+      .addCase(fetchWorkspaceInvitations.fulfilled, (state, { payload }) => {
+        state.invitations = (payload.data || []).map(inv => ({
+          ...inv,
+          id: inv.id || inv._id,
+          name: inv.email.split("@")[0],
+          role: inv.role || "MEMBER",
+          sentAt: inv.createdAt || Date.now(),
+          status: (inv.status || "pending").toLowerCase()
+        }));
+      });
+
+    /* fetchMyInvitations */
+    builder
+      .addCase(fetchMyInvitations.fulfilled, (state, { payload }) => {
+        state.myInvitations = (payload.data || []).map(inv => ({
+          ...inv,
+          id: inv.id || inv._id,
+          name: inv.workspace?.name || "Workspace",
+          role: inv.role || "MEMBER",
+          sentAt: inv.createdAt || Date.now(),
+          status: (inv.status || "pending").toLowerCase()
+        }));
+      });
+
+    /* acceptInvitationAsync */
+    builder
+      .addCase(acceptInvitationAsync.fulfilled, (state, { payload }) => {
+        const inv = state.invitations.find(i => i.id === payload.invitationId);
+        if (inv) {
+          inv.status = "accepted";
+        }
+        const myInv = state.myInvitations.find(i => i.id === payload.invitationId);
+        if (myInv) {
+          myInv.status = "accepted";
+        }
+      });
+
+    /* updateMemberRoleAsync */
+    builder
+      .addCase(updateMemberRoleAsync.fulfilled, (state, { payload }) => {
+        const m = state.members.find(x => x.id === payload.memberId);
+        if (m) {
+          m.role = payload.role;
+        }
+      });
+
+    /* removeMemberAsync */
+    builder
+      .addCase(removeMemberAsync.fulfilled, (state, { payload }) => {
+        state.members = state.members.filter(m => m.id !== payload.memberId);
       });
   },
 });

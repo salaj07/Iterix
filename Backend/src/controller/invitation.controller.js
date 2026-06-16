@@ -6,12 +6,13 @@ const invitationService = require("../services/invitation.service");
 const inviteMember = async (req, res, next) => {
   try {
     const { workspaceId } = req.params;
-    const { email } = req.body;
+    const { email, role } = req.body;
 
     const result = await invitationService.inviteMember(
       workspaceId,
       req.user,
-      email
+      email,
+      role
     );
 
     return res.status(201).json({
@@ -82,9 +83,30 @@ const rejectInvitation = async (req, res, next) => {
   }
 };
 
+/**
+ * Get invitations sent by a specific workspace
+ */
+const getWorkspaceInvitations = async (req, res, next) => {
+  try {
+    const { workspaceId } = req.params;
+    const invitations = await invitationService.getWorkspaceInvitations(
+      workspaceId,
+      req.user
+    );
+
+    return res.status(200).json({
+      success: true,
+      data: invitations,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   inviteMember,
   getMyInvitations,
   acceptInvitation,
   rejectInvitation,
+  getWorkspaceInvitations,
 };

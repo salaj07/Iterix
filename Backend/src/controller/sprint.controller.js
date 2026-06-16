@@ -82,9 +82,32 @@ const completeSprint = async (req, res, next) => {
   }
 };
 
+/**
+ * Delete Sprint
+ */
+const deleteSprint = async (req, res, next) => {
+  try {
+    const { sprintId } = req.params;
+
+    const result = await sprintService.deleteSprint(
+      sprintId,
+      req.user
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: "Sprint deleted successfully",
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   createSprint,
   getProjectSprints,
   startSprint,
   completeSprint,
+  deleteSprint,
 };

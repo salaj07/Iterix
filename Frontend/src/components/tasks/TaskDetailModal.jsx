@@ -10,9 +10,9 @@ import { Badge, Textarea, Input, Select } from "@/components/common/Primitives";
 import { priorityTone, typeTone, formatRelative, formatDate } from "@/lib/format";
 import {
   updateTask, addComment, addSubtask, toggleSubtask, moveTask,
-  submitForReview, approveTask, rejectTask, deleteTask,
+  submitForReview, approveTask, rejectTask,
   changeTaskStatusAsync, assignTaskAsync, approveTaskAsync, requestChangesAsync,
-  updateTaskDetailsAsync, fetchCommentsAsync, addCommentAsync,
+  updateTaskDetailsAsync, fetchCommentsAsync, addCommentAsync, deleteTaskAsync,
 } from "@/store/slices/tasksSlice";
 import { push as pushNotif } from "@/store/slices/notificationsSlice";
 import { PRIORITIES, ROLES } from "@/store/seed";
@@ -61,7 +61,11 @@ export default function TaskDetailModal({ taskId, onClose }) {
   const reporter = members.find(m => m.id === task.reporterId);
   const project = projects.find(p => p.id === task.projectId);
   const sprint = sprints.find(s => s.id === task.sprintId);
+  const projectSprints = (sprints || []).filter(s => s && s.projectId === task.projectId);
   const role = me?.role;
+  const projectRole = project?.memberRole || "DEVELOPER";
+  const isDeveloper = projectRole === "DEVELOPER";
+  const projectMembers = members.filter(m => project?.memberIds?.includes(m.id) || m.id === project?.createdBy);
   const isAssignee = task.assigneeId && task.assigneeId === user?.id;
   const canMoveAny = can(role, ACTIONS.MOVE_TASK_ANY);
   const canReview = can(role, ACTIONS.APPROVE_TASK) && task.status === "In Review";
@@ -218,24 +222,28 @@ export default function TaskDetailModal({ taskId, onClose }) {
                 setEdited(prev => ({ ...prev, assigneeId: val }));
               }}>
                 <option value="">Unassigned</option>
-                {members.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+                {isDeveloper ? (
+                  <option value={user?.id}>{user?.name} (You)</option>
+                ) : (
+                  projectMembers.map(m => <option key={m.id} value={m.id}>{m.name}</option>)
+                )}
               </Select>
             </Field>
             <Field label="Priority">
-              <Select value={edited.priority !== undefined ? edited.priority : task.priority} onChange={(e) => {
+              <Select disabled={isDeveloper} value={edited.priority !== undefined ? edited.priority : task.priority} onChange={(e) => {
                 setEdited(prev => ({ ...prev, priority: e.target.value }));
               }}>
                 {PRIORITIES.map(p => <option key={p}>{p}</option>)}
               </Select>
             </Field>
             <Field label="Story points">
-              <Input type="number" value={edited.points !== undefined ? (edited.points ?? "") : (task.points ?? "")} min={0} onChange={(e) => {
+              <Input type="number" disabled={isDeveloper} value={edited.points !== undefined ? (edited.points ?? "") : (task.points ?? "")} min={0} onChange={(e) => {
                 const val = e.target.value === "" ? null : Number(e.target.value);
                 setEdited(prev => ({ ...prev, points: val }));
               }} />
             </Field>
             <Field label="Due date">
-              <Input type="date"
+              <Input type="date" disabled={isDeveloper}
                 value={edited.dueDate !== undefined 
                   ? (edited.dueDate ? new Date(edited.dueDate).toISOString().slice(0,10) : "") 
                   : (task.dueDate ? new Date(task.dueDate).toISOString().slice(0,10) : "")}
@@ -245,7 +253,15 @@ export default function TaskDetailModal({ taskId, onClose }) {
                 }} />
             </Field>
             <Field label="Sprint">
-              <div className="text-sm">{sprint?.name || <span className="text-muted-foreground">Backlog</span>}</div>
+              <Select value={edited.sprintId !== undefined ? (edited.sprintId || "") : (task.sprintId || "")} onChange={(e) => {
+                const val = e.target.value || null;
+                setEdited(prev => ({ ...prev, sprintId: val }));
+              }}>
+                <option value="">Backlog / Unscheduled</option>
+                {projectSprints.map(s => (
+                  <option key={s.id} value={s.id}>{s.name} ({s.status})</option>
+                ))}
+              </Select>
             </Field>
             <Field label="Reporter">
               <div className="flex items-center gap-2 text-sm">
@@ -311,7 +327,7 @@ export default function TaskDetailModal({ taskId, onClose }) {
               </Button>
             )}
             {canDelete && (
-              <Button variant="ghost" className="w-full text-red-500" onClick={() => { dispatch(deleteTask(task.id)); onClose(); }}>Delete task</Button>
+              <Button variant="ghost" className="w-full text-red-500" onClick={() => { dispatch(deleteTaskAsync(task.id)); onClose(); }}>Delete task</Button>
             )}
           </div>
         </div>

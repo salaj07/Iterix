@@ -11,6 +11,12 @@
 require("dotenv").config();
 const mongoose = require("mongoose");
 const request = require("supertest");
+
+jest.mock("../src/services/email.service", () => ({
+  sendOTPEmail: jest.fn().mockResolvedValue(true),
+  sendInvitationEmail: jest.fn().mockResolvedValue(true),
+}));
+
 const app = require("../src/app");
 
 const TEST_DB_URI =
@@ -53,7 +59,7 @@ describe("POST /api/auth/send-otp", () => {
   it("should accept a valid email and attempt OTP send", async () => {
     const res = await request(app)
       .post("/api/auth/send-otp")
-      .send({ email: "test@example.com" });
+      .send({ email: "test@medicaps.ac.in" });
     // 200 = email sent, 500 = email config issue — both mean validation passed
     expect([200, 500]).toContain(res.statusCode);
   });
@@ -70,7 +76,7 @@ describe("POST /api/auth/verify-otp", () => {
   it("should return 422 when OTP is not 6 digits", async () => {
     const res = await request(app)
       .post("/api/auth/verify-otp")
-      .send({ email: "test@example.com", otp: "123" });
+      .send({ email: "test@medicaps.ac.in", otp: "123" });
     expect(res.statusCode).toBe(422);
     expect(res.body.errors[0].field).toBe("otp");
   });
@@ -78,14 +84,14 @@ describe("POST /api/auth/verify-otp", () => {
   it("should return 422 when OTP is non-numeric", async () => {
     const res = await request(app)
       .post("/api/auth/verify-otp")
-      .send({ email: "test@example.com", otp: "abcdef" });
+      .send({ email: "test@medicaps.ac.in", otp: "abcdef" });
     expect(res.statusCode).toBe(422);
   });
 
   it("should pass validation with correct shape but fail at service level", async () => {
     const res = await request(app)
       .post("/api/auth/verify-otp")
-      .send({ email: "test@example.com", otp: "123456" });
+      .send({ email: "test@medicaps.ac.in", otp: "123456" });
     // Validation passed — service may return 400, 404, 500 depending on OTP state
     expect([200, 400, 404, 500]).toContain(res.statusCode);
   });

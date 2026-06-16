@@ -28,4 +28,10 @@ router.patch("/:workspaceId", protect, updateWorkspaceRules, validate, workspace
 // Delete workspace
 router.delete("/:workspaceId", protect, workspaceIdRules, validate, workspaceController.deleteWorkspace);
 
+// Update member role in workspace
+router.patch("/:workspaceId/members/:memberId", protect, workspaceIdRules, validate, workspaceController.updateMemberRole);
+
+// Remove member from workspace
+router.delete("/:workspaceId/members/:memberId", protect, workspaceIdRules, validate, workspaceController.removeMember);
+
 module.exports = router;

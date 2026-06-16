@@ -82,7 +82,7 @@ export default function OtpVerify() {
         navigate("/onboarding");
       }
     } else {
-      const msg = result.payload?.message || "Invalid code. Please try again.";
+      const msg = result.payload?.errors?.[0]?.message || result.payload?.message || "Invalid code. Please try again.";
       setErr(msg);
       toast.error(msg);
     }

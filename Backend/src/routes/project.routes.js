@@ -18,8 +18,20 @@ router.get("/:projectId/dashboard", protect, projectIdRules, validate, projectCo
 // Get Project Members
 router.get("/:projectId/members", protect, projectIdRules, validate, projectController.getProjectMembers);
 
+// Add Project Member
+router.post("/:projectId/members", protect, projectIdRules, validate, projectController.addProjectMember);
+
+// Update Project Member Role
+router.patch("/:projectId/members/:userId", protect, projectIdRules, validate, projectController.updateProjectMemberRole);
+
+// Remove Project Member
+router.delete("/:projectId/members/:userId", protect, projectIdRules, validate, projectController.removeProjectMember);
+
 // Get Project By ID
 router.get("/:projectId", protect, projectIdRules, validate, projectController.getProjectById);
+
+// Update Project Details
+router.patch("/:projectId", protect, projectIdRules, validate, projectController.updateProject);
 
 // Archive Project
 router.patch("/:projectId/archive", protect, projectIdRules, validate, projectController.archiveProject);

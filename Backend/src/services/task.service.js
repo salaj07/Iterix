@@ -2,8 +2,18 @@ const Task = require("../models/task.model");
 const Project = require("../models/project.model");
 const Sprint = require("../models/sprint.model");
 const ProjectMember = require("../models/projectMember.model");
+const WorkspaceMember = require("../models/workspaceMember.model");
+const Comment = require("../models/comment.model");
 
 /* ─── Mapping Helpers ────────────────────────────────────────────────── */
+
+const mapStatusToFrontend = (status) => {
+  if (status === "TODO") return "Todo";
+  if (status === "IN_PROGRESS") return "In Progress";
+  if (status === "IN_REVIEW") return "In Review";
+  if (status === "DONE") return "Done";
+  return status;
+};
 
 const mapTaskToFrontend = (task) => {
   if (!task) return null;
@@ -107,16 +117,33 @@ const createTask = async (data, currentUser) => {
     throw new Error("Project not found");
   }
 
-  // Only TEAM_LEAD can create tasks
-  const membership = await ProjectMember.findOne({
-    project: mappedData.project,
+  // Check if workspace ADMIN
+  const isAdmin = await WorkspaceMember.findOne({
+    workspace: project.workspace,
     user: currentUser._id,
-    role: "TEAM_LEAD",
+    role: "ADMIN",
     isActive: true,
   });
 
-  if (!membership) {
-    throw new Error("Only TEAM_LEAD can create tasks");
+  let projectRole = null;
+  if (!isAdmin) {
+    const membership = await ProjectMember.findOne({
+      project: mappedData.project,
+      user: currentUser._id,
+      isActive: true,
+    });
+
+    if (!membership) {
+      throw new Error("Access denied. You are not a member of this project.");
+    }
+    projectRole = membership.role;
+  }
+
+  // Developer collaborative rules
+  if (projectRole === "DEVELOPER") {
+    if (mappedData.assignee && mappedData.assignee.toString() !== currentUser._id.toString()) {
+      throw new Error("As a Team Member, you can only assign tasks to yourself or leave them unassigned.");
+    }
   }
 
   // Generate task code
@@ -130,6 +157,13 @@ const createTask = async (data, currentUser) => {
     ...mappedData,
     taskCode,
     createdBy: currentUser._id,
+    history: [
+      {
+        at: new Date(),
+        by: currentUser._id,
+        type: "created",
+      },
+    ],
   });
 
   return mapTaskToFrontend(task);
@@ -139,14 +173,28 @@ const createTask = async (data, currentUser) => {
  * Get all tasks for a project
  */
 const getProjectTasks = async (projectId, currentUser) => {
-  const membership = await ProjectMember.findOne({
-    project: projectId,
+  const project = await Project.findById(projectId);
+  if (!project) {
+    throw new Error("Project not found");
+  }
+
+  const isAdmin = await WorkspaceMember.findOne({
+    workspace: project.workspace,
     user: currentUser._id,
+    role: "ADMIN",
     isActive: true,
   });
 
-  if (!membership) {
-    throw new Error("Access denied");
+  if (!isAdmin) {
+    const membership = await ProjectMember.findOne({
+      project: projectId,
+      user: currentUser._id,
+      isActive: true,
+    });
+
+    if (!membership) {
+      throw new Error("Access denied");
+    }
   }
 
   const tasks = await Task.find({
@@ -168,15 +216,25 @@ const assignTask = async (taskId, assigneeId, currentUser) => {
     throw new Error("Task not found");
   }
 
-  const lead = await ProjectMember.findOne({
-    project: task.project,
+  const project = await Project.findById(task.project);
+  const isAdmin = project && await WorkspaceMember.findOne({
+    workspace: project.workspace,
     user: currentUser._id,
-    role: "TEAM_LEAD",
+    role: "ADMIN",
     isActive: true,
   });
 
-  if (!lead) {
-    throw new Error("Only TEAM_LEAD can assign tasks");
+  if (!isAdmin) {
+    const lead = await ProjectMember.findOne({
+      project: task.project,
+      user: currentUser._id,
+      role: "TEAM_LEAD",
+      isActive: true,
+    });
+
+    if (!lead) {
+      throw new Error("Only TEAM_LEAD can assign tasks");
+    }
   }
 
   if (assigneeId) {
@@ -210,15 +268,25 @@ const moveToSprint = async (taskId, sprintId, currentUser) => {
     throw new Error("Task not found");
   }
 
-  const lead = await ProjectMember.findOne({
-    project: task.project,
+  const project = await Project.findById(task.project);
+  const isAdmin = project && await WorkspaceMember.findOne({
+    workspace: project.workspace,
     user: currentUser._id,
-    role: "TEAM_LEAD",
+    role: "ADMIN",
     isActive: true,
   });
 
-  if (!lead) {
-    throw new Error("Only TEAM_LEAD can move tasks");
+  if (!isAdmin) {
+    const lead = await ProjectMember.findOne({
+      project: task.project,
+      user: currentUser._id,
+      role: "TEAM_LEAD",
+      isActive: true,
+    });
+
+    if (!lead) {
+      throw new Error("Only TEAM_LEAD can move tasks to sprints");
+    }
   }
 
   if (sprintId) {
@@ -253,17 +321,29 @@ const changeTaskStatus = async (taskId, status, currentUser) => {
     throw new Error("Task not found");
   }
 
-  // Check the logged-in user is the assignee or a TEAM_LEAD
+  // Check the logged-in user is the assignee, a TEAM_LEAD, or a Workspace ADMIN
   const isAssignee = task.assignee && String(task.assignee) === String(currentUser._id);
-  const lead = await ProjectMember.findOne({
-    project: task.project,
+  const project = await Project.findById(task.project);
+  const isAdmin = project && await WorkspaceMember.findOne({
+    workspace: project.workspace,
     user: currentUser._id,
-    role: "TEAM_LEAD",
+    role: "ADMIN",
     isActive: true,
   });
 
-  if (!isAssignee && !lead) {
-    throw new Error("Only the assignee or TEAM_LEAD can change task status");
+  let isLead = false;
+  if (!isAdmin) {
+    const lead = await ProjectMember.findOne({
+      project: task.project,
+      user: currentUser._id,
+      role: "TEAM_LEAD",
+      isActive: true,
+    });
+    isLead = !!lead;
+  }
+
+  if (!isAssignee && !isLead && !isAdmin) {
+    throw new Error("Only the assignee, TEAM_LEAD, or Workspace ADMIN can change task status");
   }
 
   let dbStatus;
@@ -305,6 +385,18 @@ const changeTaskStatus = async (taskId, status, currentUser) => {
     }
   }
 
+  if (task.status !== dbStatus || task.workflowStage !== dbWorkflowStage) {
+    const fromStatus = task.workflowStage === "BACKLOG" ? "Backlog" : mapStatusToFrontend(task.status);
+    const toStatus = dbWorkflowStage === "BACKLOG" ? "Backlog" : mapStatusToFrontend(dbStatus);
+    task.history.push({
+      at: new Date(),
+      by: currentUser._id,
+      type: "status_change",
+      from: fromStatus,
+      to: toStatus,
+    });
+  }
+
   task.status = dbStatus;
   task.workflowStage = dbWorkflowStage;
   await task.save();
@@ -319,16 +411,26 @@ const approveTask = async (taskId, currentUser) => {
     throw new Error("Task not found");
   }
 
-  // Check if current user is TEAM_LEAD
-  const lead = await ProjectMember.findOne({
-    project: task.project,
+  // Check if current user is TEAM_LEAD or Workspace ADMIN
+  const project = await Project.findById(task.project);
+  const isAdmin = project && await WorkspaceMember.findOne({
+    workspace: project.workspace,
     user: currentUser._id,
-    role: "TEAM_LEAD",
+    role: "ADMIN",
     isActive: true,
   });
 
-  if (!lead) {
-    throw new Error("Only TEAM_LEAD can approve tasks");
+  if (!isAdmin) {
+    const lead = await ProjectMember.findOne({
+      project: task.project,
+      user: currentUser._id,
+      role: "TEAM_LEAD",
+      isActive: true,
+    });
+
+    if (!lead) {
+      throw new Error("Only TEAM_LEAD can approve tasks");
+    }
   }
 
   // Task must be in review
@@ -336,29 +438,44 @@ const approveTask = async (taskId, currentUser) => {
     throw new Error("Only tasks in review can be approved");
   }
 
+  task.history.push({
+    at: new Date(),
+    by: currentUser._id,
+    type: "approved",
+  });
   task.status = "DONE";
   await task.save();
 
   return mapTaskToFrontend(task);
 };
 
-const requestChanges = async (taskId, currentUser) => {
+const requestChanges = async (taskId, note, currentUser) => {
   const task = await Task.findById(taskId);
 
   if (!task) {
     throw new Error("Task not found");
   }
 
-  // Check if current user is TEAM_LEAD
-  const lead = await ProjectMember.findOne({
-    project: task.project,
+  // Check if current user is TEAM_LEAD or Workspace ADMIN
+  const project = await Project.findById(task.project);
+  const isAdmin = project && await WorkspaceMember.findOne({
+    workspace: project.workspace,
     user: currentUser._id,
-    role: "TEAM_LEAD",
+    role: "ADMIN",
     isActive: true,
   });
 
-  if (!lead) {
-    throw new Error("Only TEAM_LEAD can request changes");
+  if (!isAdmin) {
+    const lead = await ProjectMember.findOne({
+      project: task.project,
+      user: currentUser._id,
+      role: "TEAM_LEAD",
+      isActive: true,
+    });
+
+    if (!lead) {
+      throw new Error("Only TEAM_LEAD can request changes");
+    }
   }
 
   // Task must be in review
@@ -366,8 +483,16 @@ const requestChanges = async (taskId, currentUser) => {
     throw new Error("Only tasks in review can be sent back");
   }
 
+  task.history.push({
+    at: new Date(),
+    by: currentUser._id,
+    type: "rejected",
+    note: note || "",
+  });
   task.status = "IN_PROGRESS";
   await task.save();
+
+  return mapTaskToFrontend(task);
 
   return mapTaskToFrontend(task);
 };
@@ -379,17 +504,53 @@ const updateTask = async (taskId, updateData, currentUser) => {
     throw new Error("Task not found");
   }
 
-  // Check if current user is assignee or TEAM_LEAD
+  // Check if current user is assignee, TEAM_LEAD, or Workspace ADMIN
   const isAssignee = task.assignee && String(task.assignee) === String(currentUser._id);
-  const lead = await ProjectMember.findOne({
-    project: task.project,
+  const project = await Project.findById(task.project);
+  const isAdmin = project && await WorkspaceMember.findOne({
+    workspace: project.workspace,
     user: currentUser._id,
-    role: "TEAM_LEAD",
+    role: "ADMIN",
     isActive: true,
   });
 
-  if (!isAssignee && !lead) {
-    throw new Error("Only the assignee or TEAM_LEAD can update task details");
+  let isLead = false;
+  let isDeveloper = false;
+  if (!isAdmin) {
+    const membership = await ProjectMember.findOne({
+      project: task.project,
+      user: currentUser._id,
+      isActive: true,
+    });
+
+    if (!membership) {
+      throw new Error("Access denied. You are not a member of this project.");
+    }
+    isLead = membership.role === "TEAM_LEAD";
+    isDeveloper = membership.role === "DEVELOPER";
+  }
+
+  if (!isAssignee && !isLead && !isAdmin) {
+    throw new Error("Only the assignee, TEAM_LEAD, or Workspace ADMIN can update task details");
+  }
+
+  // Scoped Team Member / Developer restrictions
+  if (isDeveloper) {
+    if (updateData.priority !== undefined) {
+      throw new Error("Only Project Leads or Workspace Admins can change task priority");
+    }
+    if (updateData.points !== undefined || updateData.storyPoints !== undefined) {
+      throw new Error("Only Project Leads or Workspace Admins can change task points");
+    }
+    if (updateData.sprintId !== undefined) {
+      throw new Error("Only Project Leads or Workspace Admins can move tasks to sprints");
+    }
+    if (updateData.archived !== undefined) {
+      throw new Error("Only Project Leads or Workspace Admins can archive tasks");
+    }
+    if (updateData.assigneeId !== undefined && updateData.assigneeId !== null && String(updateData.assigneeId) !== String(currentUser._id)) {
+      throw new Error("As a Team Member, you can only assign tasks to yourself or leave them unassigned.");
+    }
   }
 
   // Update fields if present in updateData
@@ -432,6 +593,13 @@ const updateTask = async (taskId, updateData, currentUser) => {
   }
 
   if (updateData.archived !== undefined) {
+    if (task.isArchived !== !!updateData.archived) {
+      task.history.push({
+        at: new Date(),
+        by: currentUser._id,
+        type: updateData.archived ? "archived" : "unarchived",
+      });
+    }
     task.isArchived = !!updateData.archived;
   }
 
@@ -475,12 +643,61 @@ const updateTask = async (taskId, updateData, currentUser) => {
     } else {
       dbStatus = status;
     }
+    if (task.status !== dbStatus || task.workflowStage !== dbWorkflowStage) {
+      const fromStatus = task.workflowStage === "BACKLOG" ? "Backlog" : mapStatusToFrontend(task.status);
+      const toStatus = dbWorkflowStage === "BACKLOG" ? "Backlog" : mapStatusToFrontend(dbStatus);
+      task.history.push({
+        at: new Date(),
+        by: currentUser._id,
+        type: "status_change",
+        from: fromStatus,
+        to: toStatus,
+      });
+    }
     task.status = dbStatus;
     task.workflowStage = dbWorkflowStage;
   }
 
   await task.save();
   return mapTaskToFrontend(task);
+};
+
+/**
+ * Delete Task
+ */
+const deleteTask = async (taskId, currentUser) => {
+  const task = await Task.findById(taskId);
+
+  if (!task) {
+    throw new Error("Task not found");
+  }
+
+  const project = await Project.findById(task.project);
+  if (!project) {
+    throw new Error("Project not found");
+  }
+
+  const isWorkspaceAdmin = await WorkspaceMember.findOne({
+    workspace: project.workspace,
+    user: currentUser._id,
+    role: "ADMIN",
+    isActive: true,
+  });
+
+  const isProjectLead = await ProjectMember.findOne({
+    project: task.project,
+    user: currentUser._id,
+    role: "TEAM_LEAD",
+    isActive: true,
+  });
+
+  if (!isWorkspaceAdmin && !isProjectLead) {
+    throw new Error("Only TEAM_LEAD or Workspace ADMIN can delete tasks");
+  }
+
+  await Task.findByIdAndDelete(taskId);
+  await Comment.deleteMany({ task: taskId });
+  return { id: taskId };
 };
 
 module.exports = {
@@ -492,4 +709,5 @@ module.exports = {
   approveTask,
   requestChanges,
   updateTask,
+  deleteTask,
 };
