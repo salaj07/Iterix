@@ -89,7 +89,7 @@ export default function OtpVerify() {
   };
 
   const resend = async () => {
-    if (secondsLeft > 0) return;
+    if (loading || secondsLeft > 0) return;
     const result = await dispatch(sendOtp(pendingEmail));
     if (sendOtp.fulfilled.match(result)) {
       toast.success("New code sent!");
@@ -161,8 +161,12 @@ export default function OtpVerify() {
                   {secondsLeft > 0 ? (
                     <>Resend code in <span className="text-foreground font-medium">{secondsLeft}s</span></>
                   ) : (
-                    <button onClick={resend} className="text-[color:var(--primary)] font-medium hover:underline">
-                      Resend code
+                    <button 
+                      onClick={resend} 
+                      disabled={loading}
+                      className="text-[color:var(--primary)] font-medium hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {loading ? "Resending..." : "Resend code"}
                     </button>
                   )}
                 </div>

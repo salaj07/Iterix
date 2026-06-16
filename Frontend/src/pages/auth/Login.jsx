@@ -78,6 +78,7 @@ export default function Login() {
   }, [dispatch, navigate, clientId]);
 
   const handleSendOtp = async () => {
+    if (loading) return;
     setErr("");
     const r = emailSchema.safeParse(email.trim());
     if (!r.success) return setErr(r.error.issues[0].message);

@@ -60,7 +60,7 @@ const verifyOTP = async ({ email, otp, name }) => {
   const otpRecord = await Otp.findOne({ email });
 
   if (!otpRecord) {
-    throw new Error("OTP not found");
+    throw new Error("OTP Invalid");
   }
 
   if (otpRecord.expiresAt < new Date()) {
