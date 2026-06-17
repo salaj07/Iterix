@@ -220,10 +220,25 @@ const logout = async (res) => {
   };
 };
 
+/**
+ * Update User Profile
+ */
+const updateProfile = async (user, data) => {
+  const { name } = data;
+  if (!name || !name.trim()) {
+    throw new Error("Name is required");
+  }
+
+  user.name = name.trim();
+  await user.save();
+  return user;
+};
+
 module.exports = {
   sendOTP,
   verifyOTP,
   googleLogin,
   getMe,
   logout,
+  updateProfile,
 };

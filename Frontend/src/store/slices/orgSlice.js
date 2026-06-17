@@ -22,9 +22,9 @@ export const fetchMembers = createAsyncThunk(
 /** Invite a member to a workspace */
 export const inviteMemberAsync = createAsyncThunk(
   "org/inviteMember",
-  async ({ workspaceId, email, role }, { rejectWithValue }) => {
+  async ({ workspaceId, email, role, projectId }, { rejectWithValue }) => {
     try {
-      const res = await invitationApi.inviteMember(workspaceId, email, role);
+      const res = await invitationApi.inviteMember(workspaceId, email, role, projectId);
       return res.data; // { success, data: invitation }
     } catch (err) {
       return rejectWithValue(err.response?.data || { message: "Failed to send invitation" });
@@ -127,6 +127,10 @@ const slice = createSlice({
     updateMemberRole(state, { payload }) {
       const m = state.members.find(x => x.id === payload.id);
       if (m) m.role = payload.role;
+    },
+    updateMemberName(state, { payload }) {
+      const m = state.members.find(x => x.id === payload.id);
+      if (m) m.name = payload.name;
     },
     removeMember(state, { payload }) {
       state.members = state.members.filter(m => m.id !== payload);
@@ -250,6 +254,6 @@ const slice = createSlice({
   },
 });
 
-export const { createOrg, addMember, seedOrg, updateMemberRole, removeMember, inviteMember, acceptInvitation } = slice.actions;
+export const { createOrg, addMember, seedOrg, updateMemberRole, updateMemberName, removeMember, inviteMember, acceptInvitation } = slice.actions;
 export { ROLES };
 export default slice.reducer;

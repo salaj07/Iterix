@@ -5,8 +5,8 @@ import api from "@/lib/api";
  */
 
 /** Invite a user to a workspace by email */
-export const inviteMember = (workspaceId, email, role = "member") =>
-  api.post(`/api/workspaces/${workspaceId}/invite`, { email, role });
+export const inviteMember = (workspaceId, email, role = "member", projectId = null) =>
+  api.post(`/api/workspaces/${workspaceId}/invite`, { email, role, projectId });
 
 /** Get all pending invitations for the logged-in user */
 export const getMyInvitations = () =>

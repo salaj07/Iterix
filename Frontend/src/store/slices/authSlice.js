@@ -55,6 +55,19 @@ export const fetchMe = createAsyncThunk(
   }
 );
 
+/** Update profile details on the backend */
+export const updateProfileAsync = createAsyncThunk(
+  "auth/updateProfileAsync",
+  async (data, { rejectWithValue }) => {
+    try {
+      const res = await authApi.updateProfile(data);
+      return res.data; // { success, message, data: user }
+    } catch (err) {
+      return rejectWithValue(err.response?.data || { message: "Failed to update profile" });
+    }
+  }
+);
+
 /** Log out */
 export const logoutUser = createAsyncThunk(
   "auth/logoutUser",
@@ -187,6 +200,18 @@ const slice = createSlice({
         state.user = null;
         state.isAuthenticated = false;
         state.pendingEmail = null;
+      });
+
+    /* updateProfileAsync */
+    builder
+      .addCase(updateProfileAsync.fulfilled, (state, { payload }) => {
+        const rawUser = payload.data || payload.user || null;
+        if (rawUser) {
+          state.user = {
+            ...rawUser,
+            id: rawUser.id || rawUser._id,
+          };
+        }
       });
   },
 });

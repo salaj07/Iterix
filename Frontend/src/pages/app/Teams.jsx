@@ -26,6 +26,7 @@ export default function Teams() {
   // Project Members
   const currentProjectId = useSelector(s => s.projects.currentProjectId);
   const allProjects = useSelector(s => s.projects.projects) || [];
+  const workspaceProjects = allProjects.filter(p => p && (p.workspace === currentWorkspaceId || p.workspaceId === currentWorkspaceId));
   const currentProject = allProjects.find(p => p && (p.id === currentProjectId || p._id === currentProjectId)) || null;
   const projectMembers = useSelector(s => s.projects.projectMembers) || [];
   const loadingProjectMembers = useSelector(s => s.projects.loadingMembers);
@@ -60,7 +61,7 @@ export default function Teams() {
   // Local state toggles
   const [viewMode, setViewMode] = useState("project"); // "project" or "workspace"
   const [inviteOpen, setInviteOpen] = useState(false);
-  const [wsInviteForm, setWsInviteForm] = useState({ name: "", email: "", role: ROLES.DEVELOPER });
+  const [wsInviteForm, setWsInviteForm] = useState({ email: "", role: ROLES.DEVELOPER, projectId: "" });
 
   const [addProjMemOpen, setAddProjMemOpen] = useState(false);
   const [projMemForm, setProjMemForm] = useState({ userId: "", role: "DEVELOPER" });
@@ -79,12 +80,13 @@ export default function Teams() {
 
   // Workspace Invite
   const sendWsInvite = async () => {
-    if (!wsInviteForm.name.trim() || !wsInviteForm.email.trim() || !currentWorkspaceId) return;
+    if (!wsInviteForm.email.trim() || !currentWorkspaceId) return;
     const result = await dispatch(
       inviteMemberAsync({
         workspaceId: currentWorkspaceId,
         email: wsInviteForm.email.trim(),
         role: wsInviteForm.role,
+        projectId: wsInviteForm.projectId || undefined,
       })
     );
     if (inviteMemberAsync.fulfilled.match(result)) {
@@ -92,7 +94,7 @@ export default function Teams() {
     } else {
       toast.error(result.payload?.message || "Failed to send invitation");
     }
-    setWsInviteForm({ name: "", email: "", role: ROLES.DEVELOPER });
+    setWsInviteForm({ email: "", role: ROLES.DEVELOPER, projectId: "" });
     setInviteOpen(false);
   };
 
@@ -353,8 +355,7 @@ export default function Teams() {
               <ul className="divide-y divide-border -mx-2">
                 {invitations.filter(inv => inv && inv.status === "pending").map(inv => (
                   <li key={inv.id} className="px-2 py-3 flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-full bg-foreground/5 flex items-center justify-center text-muted-foreground"><Mail size={14} /></div>
-                    <div className="flex-1 min-w-0">
+                    <div className="w-9 h-9 rounded-full bg-foreground/5 flex items-center justify-center text-muted-foreground"><Mail size={14} /></div>                    <div className="flex-1 min-w-0">
                       <div className="text-sm font-medium truncate">{inv.name} — <span className="text-muted-foreground">{inv.email}</span></div>
                       <div className="text-xs text-muted-foreground">Sent {formatRelative(inv.sentAt)} · {roleLabel(inv.role)}</div>
                     </div>
@@ -369,23 +370,30 @@ export default function Teams() {
           </GlassCard>
         </>
       )}
-
+ 
       {/* Modal: Invite Workspace Member */}
       <Modal open={inviteOpen} onClose={() => setInviteOpen(false)} title="Invite a member"
-        footer={<div className="flex justify-end gap-2"><Button variant="ghost" onClick={() => setInviteOpen(false)}>Cancel</Button><Button onClick={sendWsInvite} disabled={!wsInviteForm.name.trim() || !wsInviteForm.email.trim()}>Send invitation</Button></div>}>
+        footer={<div className="flex justify-end gap-2"><Button variant="ghost" onClick={() => setInviteOpen(false)}>Cancel</Button><Button onClick={sendWsInvite} disabled={!wsInviteForm.email.trim()}>Send invitation</Button></div>}>
         <div className="space-y-4">
-          <div><Label>Name</Label><Input className="mt-1.5" autoFocus value={wsInviteForm.name} onChange={(e) => setWsInviteForm({ ...wsInviteForm, name: e.target.value })} /></div>
-          <div><Label>Email</Label><Input className="mt-1.5" type="email" value={wsInviteForm.email} onChange={(e) => setWsInviteForm({ ...wsInviteForm, email: e.target.value })} /></div>
-          <div><Label>Role</Label>
+          <div><Label>Email</Label><Input className="mt-1.5" type="email" autoFocus value={wsInviteForm.email} onChange={(e) => setWsInviteForm({ ...wsInviteForm, email: e.target.value })} /></div>
+          <div><Label>Workspace Role</Label>
             <Select className="mt-1.5" value={wsInviteForm.role} onChange={(e) => setWsInviteForm({ ...wsInviteForm, role: e.target.value })}>
               <option value={ROLES.ADMIN}>Admin</option>
               <option value={ROLES.TEAM_LEAD}>Project Lead</option>
               <option value={ROLES.DEVELOPER}>Developer</option>
             </Select>
           </div>
+          <div><Label>Assign to Project (Optional)</Label>
+            <Select className="mt-1.5" value={wsInviteForm.projectId} onChange={(e) => setWsInviteForm({ ...wsInviteForm, projectId: e.target.value })}>
+              <option value="">None / Assign later</option>
+              {workspaceProjects.map(p => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </Select>
+          </div>
         </div>
       </Modal>
-
+ 
       {/* Modal: Assign Workspace Member to Project */}
       <Modal open={addProjMemOpen} onClose={() => setAddProjMemOpen(false)} title="Assign Team Member to Project"
         footer={<div className="flex justify-end gap-2"><Button variant="ghost" onClick={() => setAddProjMemOpen(false)}>Cancel</Button><Button onClick={handleAddProjectMember} disabled={!projMemForm.userId}>Assign Member</Button></div>}>

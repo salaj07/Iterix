@@ -26,6 +26,8 @@ export default function TaskDetailModal({ taskId, onClose }) {
   const sprints = useSelector(s => s.sprints.sprints);
   const user = useSelector(s => s.auth.user);
   const me = members.find(m => m.id === user?.id);
+  const currentProjectId = useSelector(s => s.projects.currentProjectId);
+  const storeProjectMembers = useSelector(s => s.projects.projectMembers) || [];
   const [comment, setComment] = useState("");
   const [newSub, setNewSub] = useState("");
   const [rejectMode, setRejectMode] = useState(false);
@@ -65,7 +67,27 @@ export default function TaskDetailModal({ taskId, onClose }) {
   const role = me?.role;
   const projectRole = project?.memberRole || "DEVELOPER";
   const isDeveloper = projectRole === "DEVELOPER";
-  const projectMembers = members.filter(m => project?.memberIds?.includes(m.id) || m.id === project?.createdBy);
+  const isMeAdmin = me?.role === "ADMIN";
+  const isMeLead = project?.teamLeadId === user?.id || project?.createdBy === user?.id || (
+    (project?.id === currentProjectId || project?._id === currentProjectId) &&
+    storeProjectMembers.some(x => (x.id || x.userId || x.user?._id || x.user) === user?.id && x.role === "TEAM_LEAD")
+  );
+  const projectMembers = members.filter(m => {
+    const isMember = project?.memberIds?.includes(m.id) || m.id === project?.createdBy;
+    if (!isMember) return false;
+    if (m.role !== "ADMIN") return true;
+
+    if (project?.teamLeadId === m.id || project?.createdBy === m.id) {
+      return true;
+    }
+    if (project?.id === currentProjectId || project?._id === currentProjectId) {
+      const pm = storeProjectMembers.find(x => (x.id || x.userId || x.user?._id || x.user) === m.id);
+      if (pm && pm.role === "TEAM_LEAD") {
+        return true;
+      }
+    }
+    return false;
+  });
   const isAssignee = task.assigneeId && task.assigneeId === user?.id;
   const canMoveAny = can(role, ACTIONS.MOVE_TASK_ANY);
   const canReview = can(role, ACTIONS.APPROVE_TASK) && task.status === "In Review";
@@ -222,7 +244,7 @@ export default function TaskDetailModal({ taskId, onClose }) {
                 setEdited(prev => ({ ...prev, assigneeId: val }));
               }}>
                 <option value="">Unassigned</option>
-                {isDeveloper ? (
+                {isDeveloper && (!isMeAdmin || isMeLead) ? (
                   <option value={user?.id}>{user?.name} (You)</option>
                 ) : (
                   projectMembers.map(m => <option key={m.id} value={m.id}>{m.name}</option>)

@@ -146,6 +146,29 @@ const createTask = async (data, currentUser) => {
     }
   }
 
+  // Ensure assignee is not a Workspace Admin unless they are a Project Lead
+  if (mappedData.assignee) {
+    const isAssigneeAdmin = await WorkspaceMember.findOne({
+      workspace: project.workspace,
+      user: mappedData.assignee,
+      role: "ADMIN",
+      isActive: true,
+    });
+
+    if (isAssigneeAdmin) {
+      const isAssigneeLead = await ProjectMember.findOne({
+        project: project._id,
+        user: mappedData.assignee,
+        role: "TEAM_LEAD",
+        isActive: true,
+      });
+
+      if (!isAssigneeLead) {
+        throw new Error("Cannot assign tasks to workspace admins unless they are Project Leads");
+      }
+    }
+  }
+
   // Generate task code
   project.taskCounter += 1;
   await project.save();
@@ -247,6 +270,27 @@ const assignTask = async (taskId, assigneeId, currentUser) => {
 
     if (!assigneeMember) {
       throw new Error("Assignee is not a member of this project");
+    }
+
+    // Ensure assignee is not a Workspace Admin unless they are a Project Lead
+    const isAssigneeAdmin = await WorkspaceMember.findOne({
+      workspace: project.workspace,
+      user: assigneeId,
+      role: "ADMIN",
+      isActive: true,
+    });
+
+    if (isAssigneeAdmin) {
+      const isAssigneeLead = await ProjectMember.findOne({
+        project: task.project,
+        user: assigneeId,
+        role: "TEAM_LEAD",
+        isActive: true,
+      });
+
+      if (!isAssigneeLead) {
+        throw new Error("Cannot assign tasks to workspace admins unless they are Project Leads");
+      }
     }
 
     task.assignee = assigneeId;
@@ -566,6 +610,27 @@ const updateTask = async (taskId, updateData, currentUser) => {
   }
 
   if (updateData.assigneeId !== undefined) {
+    if (updateData.assigneeId) {
+      const isAssigneeAdmin = await WorkspaceMember.findOne({
+        workspace: project.workspace,
+        user: updateData.assigneeId,
+        role: "ADMIN",
+        isActive: true,
+      });
+
+      if (isAssigneeAdmin) {
+        const isAssigneeLead = await ProjectMember.findOne({
+          project: project._id,
+          user: updateData.assigneeId,
+          role: "TEAM_LEAD",
+          isActive: true,
+        });
+
+        if (!isAssigneeLead) {
+          throw new Error("Cannot assign tasks to workspace admins unless they are Project Leads");
+        }
+      }
+    }
     task.assignee = updateData.assigneeId || null;
   }
 

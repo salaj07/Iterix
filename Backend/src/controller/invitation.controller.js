@@ -6,13 +6,14 @@ const invitationService = require("../services/invitation.service");
 const inviteMember = async (req, res, next) => {
   try {
     const { workspaceId } = req.params;
-    const { email, role } = req.body;
+    const { email, role, projectId } = req.body;
 
     const result = await invitationService.inviteMember(
       workspaceId,
       req.user,
       email,
-      role
+      role,
+      projectId
     );
 
     return res.status(201).json({

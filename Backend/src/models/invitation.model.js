@@ -27,6 +27,12 @@ const invitationSchema = new mongoose.Schema(
       default: "DEVELOPER",
     },
 
+    project: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Project",
+      required: false,
+    },
+
     status: {
       type: String,
       enum: ["PENDING", "ACCEPTED", "REJECTED"],

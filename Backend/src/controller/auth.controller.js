@@ -93,10 +93,25 @@ const logout = async (req, res, next) => {
   }
 };
 
+const updateProfile = async (req, res, next) => {
+  try {
+    const user = await authService.updateProfile(req.user, req.body);
+
+    return res.status(200).json({
+      success: true,
+      message: "Profile updated successfully",
+      data: user,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   sendOTP,
   verifyOTP,
   googleLogin,
   getMe,
   logout,
+  updateProfile,
 };

@@ -20,6 +20,10 @@ export const googleLogin = (token) =>
 export const getMe = () =>
   api.get("/api/auth/me");
 
+/** Update the authenticated user's profile */
+export const updateProfile = (data) =>
+  api.patch("/api/auth/profile", data);
+
 /** Logout — clears the server-side cookie */
 export const logout = () =>
   api.post("/api/auth/logout");

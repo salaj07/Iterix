@@ -13,6 +13,9 @@ export default function CreateTaskModal({ open, onClose, projectId, defaultStatu
   const projects = useSelector(s => s.projects.projects);
   const sprints = useSelector(s => s.sprints.sprints);
   const members = useSelector(s => s.org.members);
+  const me = members.find(m => m.id === user?.id);
+  const currentProjectId = useSelector(s => s.projects.currentProjectId);
+  const storeProjectMembers = useSelector(s => s.projects.projectMembers) || [];
   const [type, setType] = useState("Task");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -26,7 +29,27 @@ export default function CreateTaskModal({ open, onClose, projectId, defaultStatu
   const projectSprints = sprints.filter(s => s && s.projectId === proj);
   const selectedProject = projects.find(p => p.id === proj);
   const isDeveloper = selectedProject && selectedProject.memberRole === "DEVELOPER";
-  const projectMembers = members.filter(m => selectedProject?.memberIds?.includes(m.id) || m.id === selectedProject?.createdBy);
+  const isMeAdmin = me?.role === "ADMIN";
+  const isMeLead = selectedProject?.teamLeadId === user?.id || selectedProject?.createdBy === user?.id || (
+    (selectedProject?.id === currentProjectId || selectedProject?._id === currentProjectId) &&
+    storeProjectMembers.some(x => (x.id || x.userId || x.user?._id || x.user) === user?.id && x.role === "TEAM_LEAD")
+  );
+  const projectMembers = members.filter(m => {
+    const isMember = selectedProject?.memberIds?.includes(m.id) || m.id === selectedProject?.createdBy;
+    if (!isMember) return false;
+    if (m.role !== "ADMIN") return true;
+
+    if (selectedProject?.teamLeadId === m.id || selectedProject?.createdBy === m.id) {
+      return true;
+    }
+    if (selectedProject?.id === currentProjectId || selectedProject?._id === currentProjectId) {
+      const pm = storeProjectMembers.find(x => (x.id || x.userId || x.user?._id || x.user) === m.id);
+      if (pm && pm.role === "TEAM_LEAD") {
+        return true;
+      }
+    }
+    return false;
+  });
 
   useEffect(() => {
     if (open) {
@@ -97,7 +120,7 @@ export default function CreateTaskModal({ open, onClose, projectId, defaultStatu
             <Label>Assignee</Label>
             <Select className="mt-1.5" value={assigneeId} onChange={(e) => setAssigneeId(e.target.value)}>
               <option value="">Unassigned</option>
-              {isDeveloper ? (
+              {isDeveloper && (!isMeAdmin || isMeLead) ? (
                 <option value={user?.id}>{user?.name} (You)</option>
               ) : (
                 projectMembers.map(m => <option key={m.id} value={m.id}>{m.name}</option>)

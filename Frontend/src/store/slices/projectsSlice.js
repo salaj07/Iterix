@@ -1,6 +1,7 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import * as projectApi from "@/services/project.api";
 import { clearWorkspaceDataAsync } from "./workspaceSlice";
+import { updateProfileAsync } from "./authSlice";
 
 /* ─── Async Thunks ────────────────────────────────────────────────────── */
 
@@ -321,6 +322,24 @@ const slice = createSlice({
               memberIds: updated.memberIds || state.projects[idx].memberIds || []
             };
           }
+        }
+      })
+      .addCase(updateProfileAsync.fulfilled, (state, { payload }) => {
+        const rawUser = payload?.data || payload?.user || null;
+        if (rawUser) {
+          const userId = rawUser.id || rawUser._id;
+          state.projectMembers = state.projectMembers.map((m) => {
+            const memberUser = m.user || m;
+            const mId = memberUser._id || memberUser.id || m.id;
+            if (String(mId) === String(userId)) {
+              if (m.user && typeof m.user === "object") {
+                return { ...m, user: { ...m.user, name: rawUser.name } };
+              } else {
+                return { ...m, name: rawUser.name };
+              }
+            }
+            return m;
+          });
         }
       });
 

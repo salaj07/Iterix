@@ -7,7 +7,7 @@ const { sendInvitationEmail } = require("./email.service");
 /**
  * Invite a user to a workspace
  */
-const inviteMember = async (workspaceId, adminUser, email, role = "DEVELOPER") => {
+const inviteMember = async (workspaceId, adminUser, email, role = "DEVELOPER", projectId = null) => {
   // Check workspace exists
   const workspace = await Workspace.findById(workspaceId);
 
@@ -65,6 +65,7 @@ const inviteMember = async (workspaceId, adminUser, email, role = "DEVELOPER") =
     email,
     invitedBy: adminUser._id,
     role,
+    project: projectId || null,
   });
 
   // Send email
@@ -121,6 +122,27 @@ const acceptInvitation = async (invitationId, user) => {
 
   invitation.status = "ACCEPTED";
   await invitation.save();
+
+  // Auto-assign to project if invited to a project
+  if (invitation.project) {
+    const ProjectMember = require("../models/projectMember.model");
+    
+    // Check if they are already in the project (even soft-deleted)
+    const existingProjMember = await ProjectMember.findOne({
+      project: invitation.project,
+      user: user._id,
+    });
+    if (existingProjMember) {
+      existingProjMember.isActive = true;
+      await existingProjMember.save();
+    } else {
+      await ProjectMember.create({
+        project: invitation.project,
+        user: user._id,
+        role: "DEVELOPER",
+      });
+    }
+  }
 
   try {
     const ws = await Workspace.findById(invitation.workspace);

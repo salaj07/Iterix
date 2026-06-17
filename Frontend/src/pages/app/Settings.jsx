@@ -7,7 +7,8 @@ import Button from "@/components/common/Button";
 import Avatar from "@/components/common/Avatar";
 import Modal from "@/components/common/Modal";
 import { setTheme } from "@/store/slices/themeSlice";
-import { updateProfile } from "@/store/slices/authSlice";
+import { updateProfileAsync } from "@/store/slices/authSlice";
+import { updateMemberName } from "@/store/slices/orgSlice";
 import { clearWorkspaceDataAsync } from "@/store/slices/workspaceSlice";
 import { deleteProjectAsync } from "@/store/slices/projectsSlice";
 
@@ -102,11 +103,21 @@ export default function Settings() {
           <div className="text-sm text-muted-foreground">Avatar is generated from your initials.</div>
         </div>
         <div className="grid sm:grid-cols-2 gap-4">
-          <div><Label>Name</Label><Input className="mt-1.5" value={name} onChange={(e) => setName(e.target.value)} /></div>
-          <div><Label>Email</Label><Input className="mt-1.5" type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></div>
+          <div><Label>Username</Label><Input className="mt-1.5" value={name} onChange={(e) => setName(e.target.value)} /></div>
+          <div><Label>Email</Label><Input className="mt-1.5 bg-foreground/5 cursor-not-allowed" type="email" value={email} disabled /></div>
         </div>
         <div className="mt-5">
-          <Button onClick={() => { dispatch(updateProfile({ name, email })); toast.success("Profile updated"); }}>Save changes</Button>
+          <Button onClick={async () => {
+            const result = await dispatch(updateProfileAsync({ name }));
+            if (updateProfileAsync.fulfilled.match(result)) {
+              if (user?.id) {
+                dispatch(updateMemberName({ id: user.id, name }));
+              }
+              toast.success("Profile updated");
+            } else {
+              toast.error(result.payload?.message || "Failed to update profile");
+            }
+          }}>Save changes</Button>
         </div>
       </GlassCard>
 
