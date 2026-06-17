@@ -1,13 +1,38 @@
 const express = require("express");
 const router = express.Router();
+const rateLimit = require("express-rate-limit");
 
 const authController = require("../controller/auth.controller.js");
 const { protect } = require("../middleware/auth.middleware");
 const { validate } = require("../middleware/validate.middleware");
 const { sendOTPRules, verifyOTPRules, googleLoginRules, updateProfileRules } = require("../validators/auth.validator");
 
-router.post("/send-otp", sendOTPRules, validate, authController.sendOTP);
-router.post("/verify-otp", verifyOTPRules, validate, authController.verifyOTP);
+// Limit OTP sending to 5 requests per 10 minutes per IP
+const sendOtpLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000, // 10 minutes
+  max: 5,
+  message: {
+    success: false,
+    message: "Too many OTP requests. Please try again after 10 minutes.",
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Limit OTP verification to 5 attempts per 10 minutes per IP
+const verifyOtpLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000, // 10 minutes
+  max: 5,
+  message: {
+    success: false,
+    message: "Too many verification attempts. Please try again after 10 minutes.",
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+router.post("/send-otp", sendOtpLimiter, sendOTPRules, validate, authController.sendOTP);
+router.post("/verify-otp", verifyOtpLimiter, verifyOTPRules, validate, authController.verifyOTP);
 router.post("/google",(req,res,next)=>{
  console.log(req.body)
  next()
