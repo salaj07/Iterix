@@ -129,24 +129,6 @@ export default function Login() {
   };
 
 
-  const handleMockGoogleSignIn = async () => {
-    setLoading(true);
-    const result = await dispatch(googleLoginAsync("mock-google-token"));
-    if (googleLoginAsync.fulfilled.match(result)) {
-      toast.success("Logged in with Demo Google account!");
-      const wsResult = await dispatch(fetchWorkspaces());
-      const list = wsResult.payload?.data || [];
-      if (list.length > 0) {
-        navigate("/app/dashboard");
-      } else {
-        navigate("/onboarding");
-      }
-    } else {
-      toast.error(result.payload?.message || "Google Sign-In failed.");
-      setLoading(false);
-    }
-  };
-
   return (
     <div className="min-h-screen grid lg:grid-cols-2">
       {/* Left brand panel */}
@@ -260,13 +242,6 @@ export default function Login() {
                   </svg>
                   Continue with Google
                 </Button>
-                <button
-                  type="button"
-                  onClick={handleMockGoogleSignIn}
-                  className="text-xs text-muted-foreground hover:text-foreground transition-colors underline self-center mt-1"
-                >
-                  Or use Demo Google Sign-In for testing
-                </button>
               </div>
             )}
 

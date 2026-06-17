@@ -134,38 +134,26 @@ const googleLogin = async ({ token }) => {
     throw new Error("Google token is required");
   }
 
-  let email, name;
-
-  if (token === "mock-google-token") {
-    email = "google.demo@iterix.com";
-    name = "Demo Google User";
-  } else {
-    if (!process.env.GOOGLE_CLIENT_ID) {
-      throw new Error("Google Client ID is not configured on the server");
-    }
-    // const ticket = await client.verifyIdToken({
-    //   idToken: token,
-    //   audience: process.env.GOOGLE_CLIENT_ID,
-    // });
-
-    const response = await fetch(
-      "https://www.googleapis.com/oauth2/v3/userinfo",
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
-    );
-
-    const responseData = await response.json();
-    // console.log(responseData)
-    if (!responseData || !responseData.email || !responseData.name) {
-      throw new Error("Invalid Google token");
-    }
-
-    email = responseData.email;
-    name = responseData.name;
+  if (!process.env.GOOGLE_CLIENT_ID) {
+    throw new Error("Google Client ID is not configured on the server");
   }
+
+  const response = await fetch(
+    "https://www.googleapis.com/oauth2/v3/userinfo",
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
+
+  const responseData = await response.json();
+  if (!responseData || !responseData.email || !responseData.name) {
+    throw new Error("Invalid Google token");
+  }
+
+  email = responseData.email;
+  name = responseData.name;
 
   const allowedDomain = process.env.ALLOWED_EMAIL_DOMAIN;
   if (allowedDomain && !email.endsWith(`@${allowedDomain}`)) {
