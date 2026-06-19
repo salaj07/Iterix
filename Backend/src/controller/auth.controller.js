@@ -37,7 +37,6 @@ const verifyOTP = async (req, res, next) => {
 
 const googleLogin = async (req, res, next) => {
   try {
-    console.log(req.body)
     const result = await authService.googleLogin(req.body);
 
     res.cookie("token", result.data.token, {

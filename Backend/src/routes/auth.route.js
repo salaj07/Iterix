@@ -33,10 +33,7 @@ const verifyOtpLimiter = rateLimit({
 
 router.post("/send-otp", sendOtpLimiter, sendOTPRules, validate, authController.sendOTP);
 router.post("/verify-otp", verifyOtpLimiter, verifyOTPRules, validate, authController.verifyOTP);
-router.post("/google",(req,res,next)=>{
- console.log(req.body)
- next()
-}, googleLoginRules, validate, authController.googleLogin);
+router.post("/google", googleLoginRules, validate, authController.googleLogin);
 
 router.get("/me", protect, authController.getMe);
 router.patch("/profile", protect, updateProfileRules, validate, authController.updateProfile);
