@@ -7,8 +7,12 @@ import axios from "axios";
  * - withCredentials: true so HTTP-only cookies are sent on every request
  * - Timeout: 15 seconds
  */
+if (import.meta.env.PROD && !import.meta.env.VITE_API_URL) {
+  console.error("❌ Critical: VITE_API_URL environment variable is missing in the production build!");
+}
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "http://localhost:3000",
+  baseURL: import.meta.env.VITE_API_URL || (import.meta.env.DEV ? "http://localhost:3000" : ""),
   withCredentials: true,
   timeout: 30000,
   headers: {

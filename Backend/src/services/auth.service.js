@@ -152,8 +152,7 @@ const googleLogin = async ({ token }) => {
     throw new Error("Invalid Google token");
   }
 
-  email = responseData.email;
-  name = responseData.name;
+  const { email, name } = responseData;
 
   const allowedDomain = process.env.ALLOWED_EMAIL_DOMAIN;
   if (allowedDomain && !email.endsWith(`@${allowedDomain}`)) {

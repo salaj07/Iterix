@@ -2,9 +2,9 @@ const nodemailer = require("nodemailer");
 
 // Create transporter with connection pooling for faster email delivery
 const transporter = nodemailer.createTransport({
-  host: process.env.EMAIL_HOST || "smtp.gmail.com",
-  port: parseInt(process.env.EMAIL_PORT, 10) || 465,
-  secure: process.env.EMAIL_SECURE !== "false", // defaults to true (SSL) for port 465
+  host: process.env.EMAIL_HOST,
+  port: parseInt(process.env.EMAIL_PORT, 10),
+  secure: process.env.EMAIL_SECURE !== "false",
   requireTLS: true, // Force TLS upgrade for ports 587/2525 and prevent downgrades
   auth: {
     user: process.env.EMAIL_USER,

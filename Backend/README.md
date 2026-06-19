@@ -24,7 +24,7 @@ This folder contains the REST API server for Iterix, managing database storage, 
 2. **Configure Environment Variables:**
    Create a `.env` file in the `Backend` directory with the following variables:
    ```ini
-   BACKEND_PORT=3000
+   PORT=3000
    MONGODB_URI=your-mongodb-connection-string
    JWT_SECRET=your-random-jwt-secret-string
    JWT_EXPIRES_IN=7d

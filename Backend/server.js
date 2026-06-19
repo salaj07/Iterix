@@ -1,7 +1,16 @@
 require("dotenv").config();
 
 // Verify critical environment variables before loading any server code
-const REQUIRED_ENV = ["MONGODB_URI", "JWT_SECRET"];
+const REQUIRED_ENV = [
+  "MONGODB_URI",
+  "JWT_SECRET",
+  "EMAIL_HOST",
+  "EMAIL_PORT",
+  "EMAIL_USER",
+  "EMAIL_PASS",
+  "EMAIL_FROM",
+  "GOOGLE_CLIENT_ID"
+];
 for (const env of REQUIRED_ENV) {
   if (!process.env[env]) {
     console.error(`❌ Critical Error: Environment variable ${env} is missing.`);
@@ -13,7 +22,7 @@ const app = require("./src/app");
 const connectDB = require("./src/db/db");
 const mongoose = require("mongoose");
 
-const PORT = process.env.BACKEND_PORT || 5000;
+const PORT = process.env.PORT || 3000;
 
 const startServer = async () => {
   try {

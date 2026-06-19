@@ -70,7 +70,7 @@ function PageTransition({ children }) {
 export default function App() {
   const location = useLocation();
   return (
-    <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID || "dummy-client-id"}>
+    <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID}>
       <AnimatePresence mode="wait">
         <Routes>
           <Route path="/" element={<PageTransition><Landing /></PageTransition>} />
