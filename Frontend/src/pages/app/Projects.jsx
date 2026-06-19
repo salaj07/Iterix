@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { Plus, FolderKanban, Loader2 } from "lucide-react";
@@ -22,6 +22,7 @@ export default function Projects() {
   const [open, setOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [form, setForm] = useState({ name: "", key: "", description: "" });
+  const location = useLocation();
 
   const ProjectSkeleton = () => (
     <div className="glass p-5 h-40 animate-pulse flex flex-col justify-between">
@@ -37,7 +38,17 @@ export default function Projects() {
   // Fetch projects from API on mount
   useEffect(() => {
     dispatch(fetchProjects());
-  }, [dispatch]);
+    
+    // Automatically open create modal if requested via router state
+    if (location.state?.openCreateModal) {
+      const userRole = currentWs?.role;
+      if (userRole === "ADMIN" || userRole === "TEAM_LEAD") {
+        setOpen(true);
+      }
+      // Clear the state
+      window.history.replaceState({}, document.title);
+    }
+  }, [dispatch, location.state, currentWs?.role]);
 
   const create = async () => {
     if (!form.name.trim()) return;
@@ -80,7 +91,16 @@ export default function Projects() {
           <h1 className="font-display text-3xl font-bold">Projects</h1>
           <p className="text-sm text-muted-foreground mt-1">All projects across your workspace.</p>
         </div>
-        {isWorkspaceAdmin && <Button onClick={() => setOpen(true)}><Plus size={16} /> New project</Button>}
+        <Button onClick={() => {
+          const userRole = currentWs?.role;
+          if (userRole === "ADMIN" || userRole === "TEAM_LEAD") {
+            setOpen(true);
+          } else {
+            toast.error("You do not have permission to create a project. Only Workspace Admins and Project Leads can create projects.");
+          }
+        }}>
+          <Plus size={16} /> New project
+        </Button>
       </div>
 
       {loading && filteredProjects.length === 0 ? (
@@ -96,7 +116,18 @@ export default function Projects() {
           </div>
           <h3 className="font-display font-semibold text-lg">No projects yet</h3>
           <p className="text-sm text-muted-foreground mt-1">Create your first project to start shipping.</p>
-          {isWorkspaceAdmin && <div className="mt-5"><Button onClick={() => setOpen(true)}><Plus size={16} /> Create project</Button></div>}
+          <div className="mt-5">
+            <Button onClick={() => {
+              const userRole = currentWs?.role;
+              if (userRole === "ADMIN" || userRole === "TEAM_LEAD") {
+                setOpen(true);
+              } else {
+                toast.error("You do not have permission to create a project. Only Workspace Admins and Project Leads can create projects.");
+              }
+            }}>
+              <Plus size={16} /> Create project
+            </Button>
+          </div>
         </GlassCard>
       ) : (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">

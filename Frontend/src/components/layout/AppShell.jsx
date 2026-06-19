@@ -84,6 +84,24 @@ export default function AppShell() {
     }
   }, [dispatch, currentWorkspaceId]);
 
+  // Sync selected project to the active workspace
+  useEffect(() => {
+    if (currentWorkspaceId && projects.length > 0) {
+      const wsProjects = projects.filter(
+        (p) => p && (p.workspace === currentWorkspaceId || p.workspaceId === currentWorkspaceId)
+      );
+      const currentProjValid = wsProjects.some(
+        (p) => p && (p.id === currentProjectId || p._id === currentProjectId)
+      );
+      if (!currentProjValid) {
+        const firstProjId = wsProjects[0] ? (wsProjects[0].id || wsProjects[0]._id) : null;
+        dispatch(setCurrentProjectId(firstProjId));
+      }
+    } else if (!currentWorkspaceId || projects.length === 0) {
+      dispatch(setCurrentProjectId(null));
+    }
+  }, [currentWorkspaceId, projects, currentProjectId, dispatch]);
+
   // 3. Fetch project tasks and sprints when the list of projects changes
   const projectIdsStr = (projects || []).map(p => p ? (p.id || p._id) : "").join(",");
   useEffect(() => {

@@ -31,16 +31,16 @@ const createProject = async (data, currentUser) => {
     throw new Error("Workspace not found");
   }
 
-  // Only ADMIN can create projects
-  const admin = await WorkspaceMember.findOne({
+  // Only ADMIN and TEAM_LEAD can create projects
+  const hasPermission = await WorkspaceMember.findOne({
     workspace: workspaceId,
     user: currentUser._id,
-    role: "ADMIN",
+    role: { $in: ["ADMIN", "TEAM_LEAD"] },
     isActive: true,
   });
 
-  if (!admin) {
-    throw new Error("Only workspace admins can create projects");
+  if (!hasPermission) {
+    throw new Error("Only Workspace Admins and Project Leads can create projects");
   }
 
   // Prevent duplicate project names
@@ -339,20 +339,39 @@ const addProjectMember = async (projectId, userId, role, currentUser) => {
 
   // Check if they are already in the project (even soft-deleted)
   const existing = await ProjectMember.findOne({ project: projectId, user: userId });
+  let isNewAssignment = false;
+  let member;
   if (existing) {
+    if (!existing.isActive) {
+      isNewAssignment = true;
+    }
     existing.isActive = true;
     existing.role = role || existing.role;
-    await existing.save();
-    return existing;
+    member = await existing.save();
+  } else {
+    isNewAssignment = true;
+    member = await ProjectMember.create({
+      project: projectId,
+      user: userId,
+      role,
+    });
   }
 
-  const newMember = await ProjectMember.create({
-    project: projectId,
-    user: userId,
-    role,
-  });
+  if (isNewAssignment) {
+    try {
+      const { createNotification } = require("./notification.service");
+      await createNotification({
+        user: userId,
+        title: "Project Assigned",
+        message: `You have been assigned to the project "${project.name}".`,
+        type: "PROJECT_ASSIGNED",
+      });
+    } catch (err) {
+      console.error("Failed to create project assignment notification:", err);
+    }
+  }
 
-  return newMember;
+  return member;
 };
 
 const removeProjectMember = async (projectId, userId, currentUser) => {

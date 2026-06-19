@@ -58,9 +58,8 @@ export default function Workspaces() {
       <div className="flex items-end justify-between">
         <div>
           <h1 className="font-display text-3xl font-bold">Workspaces</h1>
-          <p className="text-sm text-muted-foreground mt-1">Switch between organizations or create a new one.</p>
+          <p className="text-sm text-muted-foreground mt-1">Switch between organizations.</p>
         </div>
-        <Button onClick={() => setOpen(true)}><Plus size={16} /> New workspace</Button>
       </div>
 
       {loading && workspaces.length === 0 ? (
@@ -96,15 +95,6 @@ export default function Workspaces() {
               </motion.button>
             );
           })}
-
-          <motion.button
-            whileHover={{ y: -3 }} transition={{ type: "spring", stiffness: 300 }}
-            onClick={() => setOpen(true)}
-            className="text-center border-2 border-dashed border-border rounded-[18px] p-10 text-muted-foreground hover:text-foreground hover:border-[color:var(--primary)]/40 transition-colors"
-          >
-            <Plus className="mx-auto mb-3" size={22} />
-            <div className="font-medium text-sm">Create new workspace</div>
-          </motion.button>
         </div>
       )}
 

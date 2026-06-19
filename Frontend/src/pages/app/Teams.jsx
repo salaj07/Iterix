@@ -362,7 +362,6 @@ export default function Teams() {
                     <Badge tone="bg-amber-500/10 text-amber-500 border-amber-500/20">
                       {inv.status}
                     </Badge>
-                    <Button size="sm" variant="outline" onClick={() => acceptWsInvite(inv.id)}>Simulate accept</Button>
                   </li>
                 ))}
               </ul>

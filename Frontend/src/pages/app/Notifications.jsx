@@ -20,6 +20,8 @@ const iconFor = (type) => ({
   review_request: Bell,
   task_done: CheckCheck,
   project_assigned: FolderPlus,
+  invitation: Mail,
+  member_joined: UserPlus,
 }[type] || Bell);
 
 export default function Notifications() {
@@ -158,7 +160,7 @@ export default function Notifications() {
           <ul className="divide-y divide-border">
             {displayedItems.map((n) => {
               const id = n._id || n.id;
-              const Icon = iconFor(n.type);
+              const Icon = iconFor(n.type?.toLowerCase());
               return (
                 <li key={id} className="flex items-center justify-between gap-3 px-5 py-4 hover:bg-foreground/[0.02]">
                   <div className="flex-1 flex gap-3 items-start text-left min-w-0">

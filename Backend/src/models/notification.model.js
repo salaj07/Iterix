@@ -18,6 +18,7 @@ const notificationSchema = new mongoose.Schema(
         "INVITATION",
         "SPRINT",
         "MEMBER_JOINED",
+        "PROJECT_ASSIGNED",
       ],
     },
     isRead: {

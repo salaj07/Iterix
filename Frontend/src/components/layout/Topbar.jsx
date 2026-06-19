@@ -93,7 +93,14 @@ export default function Topbar({ onOpenMobileSidebar }) {
                   <div className="text-center py-10 text-sm text-muted-foreground">You're all caught up</div>
                 )}
                 {notifs.filter(n => n && !n.read).slice(0, 5).map(n => (
-                  <div key={n.id} className="group/item relative w-full text-left px-3 py-2.5 rounded-lg hover:bg-foreground/5 flex gap-3 items-start">
+                  <button
+                    key={n.id}
+                    onClick={() => {
+                      setNotifOpen(false);
+                      navigate("/app/notifications");
+                    }}
+                    className="group/item relative w-full text-left px-3 py-2.5 rounded-lg hover:bg-foreground/5 flex gap-3 items-start cursor-pointer"
+                  >
                     <div className="w-2 h-2 mt-1.5 rounded-full shrink-0 bg-[color:var(--primary)]" />
                     <div className="flex-1 min-w-0 pr-6">
                       <div className="text-xs font-semibold text-foreground truncate">{n.title}</div>
@@ -101,13 +108,16 @@ export default function Topbar({ onOpenMobileSidebar }) {
                       <div className="text-[9px] text-muted-foreground mt-1">{formatRelative(n.createdAt || n.at)}</div>
                     </div>
                     <button
-                      onClick={() => dispatch(markReadAsync(n.id))}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        dispatch(markReadAsync(n.id));
+                      }}
                       className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-md hover:bg-foreground/10 text-muted-foreground hover:text-foreground opacity-0 group-hover/item:opacity-100 transition-opacity"
                       title="Mark as read"
                     >
                       <Check size={13} />
                     </button>
-                  </div>
+                  </button>
                 ))}
               </motion.div>
             )}

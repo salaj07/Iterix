@@ -57,11 +57,8 @@ export default function Dashboard() {
         </div>
         <h2 className="font-display text-2xl font-bold">No workspace selected</h2>
         <p className="text-sm text-muted-foreground mt-2 max-w-sm">
-          Please select or create a workspace to view your dashboard.
+          Please select a workspace from the sidebar menu to view your dashboard.
         </p>
-        <div className="mt-6">
-          <Button onClick={() => navigate("/onboarding")}><Plus size={15} /> Create workspace</Button>
-        </div>
       </div>
     );
   }
@@ -78,17 +75,33 @@ export default function Dashboard() {
             <h1 className="font-display text-3xl font-bold mt-2">Here's your day at a glance</h1>
           </div>
           <div className="flex gap-2">
-            {workspaceRole === "ADMIN" && (
-              <Link to="/app/projects">
-                <Button><Plus size={15} /> Create project</Button>
-              </Link>
-            )}
+            <Button onClick={() => {
+              if (workspaceRole === "ADMIN" || workspaceRole === "TEAM_LEAD") {
+                navigate("/app/projects", { state: { openCreateModal: true } });
+              } else {
+                toast.error("You do not have permission to create a project. Only Workspace Admins and Project Leads can create projects.");
+              }
+            }}>
+              <Plus size={15} /> Create project
+            </Button>
           </div>
         </div>
 
         {/* Quick actions */}
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          <QuickAction icon={Plus} title="Create Workspace" desc="Spin up a new home for your team." onClick={() => navigate("/onboarding")} accent />
+          <QuickAction
+            icon={Plus}
+            title="Create Project"
+            desc="Start a new project in this workspace."
+            onClick={() => {
+              if (workspaceRole === "ADMIN" || workspaceRole === "TEAM_LEAD") {
+                navigate("/app/projects", { state: { openCreateModal: true } });
+              } else {
+                toast.error("You do not have permission to create a project. Only Workspace Admins and Project Leads can create projects.");
+              }
+            }}
+            accent
+          />
           <QuickAction icon={UserPlus} title="Join Workspace" desc="Use an invite code to join an existing team." onClick={() => toast.info("Ask your admin to send you an invite link.")} />
           <QuickAction icon={Boxes} title="Browse Workspaces" desc={hasWorkspace ? `${workspaces.length} workspace${workspaces.length>1?"s":""} available` : "You have no workspaces yet"} onClick={() => navigate("/app/workspaces")} />
           <QuickAction
@@ -141,7 +154,7 @@ export default function Dashboard() {
         <Stat icon={Flame} label="Active Sprints" value={activeSprints.length} />
         <Stat icon={ListChecks} label="Total Tasks" value={tasks.length} />
         <Stat icon={CheckCheck} label="Completed" value={completedTasks} />
-        <Stat icon={Users} label="Project Team" value={projectMembers.length} />
+        <Stat icon={Users} label="Project Team Size" value={projectMembers.length} />
       </div>
 
       {/* Role-specific blocks */}

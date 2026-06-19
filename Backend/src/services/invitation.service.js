@@ -71,6 +71,21 @@ const inviteMember = async (workspaceId, adminUser, email, role = "DEVELOPER", p
   // Send email
   await sendInvitationEmail(email, workspace.name);
 
+  // Send in-app notification if the user is already registered in the system
+  if (existingUser) {
+    try {
+      const { createNotification } = require("./notification.service");
+      await createNotification({
+        user: existingUser._id,
+        title: "Workspace Invitation",
+        message: `You have been invited to join the workspace "${workspace.name}" by ${adminUser.name}.`,
+        type: "INVITATION",
+      });
+    } catch (err) {
+      console.error("Failed to create in-app invitation notification:", err);
+    }
+  }
+
   return invitation;
 };
 
@@ -132,15 +147,38 @@ const acceptInvitation = async (invitationId, user) => {
       project: invitation.project,
       user: user._id,
     });
+    let isNewProjAssignment = false;
     if (existingProjMember) {
+      if (!existingProjMember.isActive) {
+        isNewProjAssignment = true;
+      }
       existingProjMember.isActive = true;
       await existingProjMember.save();
     } else {
+      isNewProjAssignment = true;
       await ProjectMember.create({
         project: invitation.project,
         user: user._id,
         role: "DEVELOPER",
       });
+    }
+
+    if (isNewProjAssignment) {
+      try {
+        const { createNotification } = require("./notification.service");
+        const Project = require("../models/project.model");
+        const proj = await Project.findById(invitation.project);
+        if (proj) {
+          await createNotification({
+            user: user._id,
+            title: "Project Assigned",
+            message: `You have been assigned to the project "${proj.name}".`,
+            type: "PROJECT_ASSIGNED",
+          });
+        }
+      } catch (err) {
+        console.error("Failed to create project assignment notification in invite accept:", err);
+      }
     }
   }
 

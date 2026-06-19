@@ -2,6 +2,7 @@ import { NavLink, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useDispatch, useSelector } from "react-redux";
 import { useState, useRef, useEffect } from "react";
+import { toast } from "sonner";
 import {
   LayoutDashboard, FolderKanban, Users, ListChecks, Trello, Layers,
   BarChart3, Bell, Settings, Boxes, Mail, ChevronLeft, ChevronRight, X, Sparkles,
@@ -148,13 +149,20 @@ function SidebarInner({ collapsed, onCloseMobile }) {
                       </button>
                     ))}
                   </div>
-                  <div className="h-px bg-border my-1.5" />
-                  <button
-                    onClick={() => { setWsOpen(false); navigate("/onboarding"); }}
-                    className="w-full flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg hover:bg-[color:var(--primary)] hover:text-white border border-dashed border-border text-xs text-muted-foreground transition-all font-medium"
-                  >
-                    <Plus size={13} /> Create Workspace
-                  </button>
+                  {isWorkspaceAdmin && (
+                    <>
+                      <div className="h-px bg-border my-1.5" />
+                      <button
+                        onClick={() => {
+                          setWsOpen(false);
+                          toast.info("For creating the workspace contact to Iterix manager");
+                        }}
+                        className="w-full flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg hover:bg-[color:var(--primary)] hover:text-white border border-dashed border-border text-xs text-muted-foreground transition-all font-medium"
+                      >
+                        <Plus size={13} /> Create Workspace
+                      </button>
+                    </>
+                  )}
                 </motion.div>
               )}
             </AnimatePresence>
@@ -199,22 +207,20 @@ function SidebarInner({ collapsed, onCloseMobile }) {
                     )}
                   </div>
                   <div className="h-px bg-border my-1.5" />
-                  {isWorkspaceAdmin && (
-                    <button
-                      onClick={() => { setProjOpen(false); navigate("/app/projects"); }}
-                      className="w-full flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg hover:bg-[color:var(--primary)] hover:text-white border border-dashed border-border text-xs text-muted-foreground transition-all font-medium"
-                    >
-                      <Plus size={13} /> Create Project
-                    </button>
-                  )}
-                  {!isWorkspaceAdmin && (
-                    <button
-                      onClick={() => { setProjOpen(false); navigate("/app/projects"); }}
-                      className="w-full flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg hover:bg-foreground/5 border border-border text-xs text-muted-foreground transition-all font-medium"
-                    >
-                      View All Projects
-                    </button>
-                  )}
+                  <button
+                    onClick={() => {
+                      setProjOpen(false);
+                      const role = currentWs?.role || "DEVELOPER";
+                      if (role === "ADMIN" || role === "TEAM_LEAD") {
+                        navigate("/app/projects", { state: { openCreateModal: true } });
+                      } else {
+                        toast.error("You do not have permission to create a project. Only Workspace Admins and Project Leads can create projects.");
+                      }
+                    }}
+                    className="w-full flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg hover:bg-[color:var(--primary)] hover:text-white border border-dashed border-border text-xs text-muted-foreground transition-all font-medium"
+                  >
+                    <Plus size={13} /> Create Project
+                  </button>
                 </motion.div>
               )}
             </AnimatePresence>
