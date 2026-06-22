@@ -129,6 +129,22 @@ const slice = createSlice({
         Object.assign(state.sprints[idx], mapSprintFromBackend({ ...payload, id }));
       }
     },
+    upsertSprint(state, { payload }) {
+      const id = payload.id || payload._id;
+      const mapped = mapSprintFromBackend({ ...payload, id });
+      const idx = state.sprints.findIndex((s) => s.id === id || s._id === id);
+      if (idx !== -1) {
+        state.sprints[idx] = {
+          ...state.sprints[idx],
+          ...mapped,
+        };
+      } else {
+        state.sprints.push(mapped);
+      }
+    },
+    deleteSprint(state, { payload }) {
+      state.sprints = state.sprints.filter((s) => s.id !== payload && s._id !== payload);
+    },
   },
   extraReducers: (builder) => {
     /* fetchSprints */
@@ -203,5 +219,5 @@ const slice = createSlice({
   },
 });
 
-export const { createSprint, startSprint, completeSprint, seedSprint, updateSprint } = slice.actions;
+export const { createSprint, startSprint, completeSprint, seedSprint, updateSprint, upsertSprint, deleteSprint } = slice.actions;
 export default slice.reducer;

@@ -16,6 +16,21 @@ const createNotification = async ({
     type,
   });
 
+  // Emit real-time notification
+  try {
+    const { getIO } = require("../socket");
+    const io = getIO();
+    if (io) {
+      io.to(`user:${user.toString()}`).emit("new_notification", {
+        ...notif.toObject(),
+        id: notif._id,
+        read: notif.isRead,
+      });
+    }
+  } catch (err) {
+    console.error("Failed to emit socket notification:", err);
+  }
+
   // Send email alerts for critical events
   if (type === "TASK_ASSIGNED" || type === "SPRINT" || type === "TASK_APPROVED" || type === "TASK_REJECTED" || type === "COMMENT") {
     try {

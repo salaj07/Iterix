@@ -32,9 +32,26 @@ const startServer = async () => {
       console.log(`🚀 Server is running on PORT: ${PORT}`);
     });
 
+    // Initialize Socket.io
+    const { initIO } = require("./src/socket");
+    initIO(server);
+
     // Graceful shutdown handler
     const gracefulShutdown = (signal) => {
       console.log(`\n⚙️ Received ${signal}. Starting graceful shutdown...`);
+
+      // Close Socket.io server and all active connections
+      try {
+        const { getIO } = require("./src/socket");
+        const io = getIO();
+        if (io) {
+          console.log("🔌 Closing Socket.io server and active connections...");
+          io.close();
+        }
+      } catch (err) {
+        console.error("⚠️ Error closing Socket.io server:", err.message);
+      }
+
       server.close(async () => {
         console.log("🔒 Closed remaining active HTTP connections.");
         try {

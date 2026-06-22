@@ -16,9 +16,10 @@ import { roleLabel } from "@/lib/format";
 import { fetchWorkspaces } from "@/store/slices/workspaceSlice";
 import { fetchProjects, fetchProjectMembers } from "@/store/slices/projectsSlice";
 import { fetchMembers } from "@/store/slices/orgSlice";
-import { fetchProjectTasks } from "@/store/slices/tasksSlice";
-import { fetchSprints } from "@/store/slices/sprintsSlice";
-import { fetchNotifications } from "@/store/slices/notificationsSlice";
+import { fetchProjectTasks, upsertTask, deleteTask } from "@/store/slices/tasksSlice";
+import { fetchSprints, upsertSprint, deleteSprint } from "@/store/slices/sprintsSlice";
+import { fetchNotifications, push as pushNotification } from "@/store/slices/notificationsSlice";
+import { socket } from "@/services/socket.service";
 
 export default function AppShell() {
   const dispatch = useDispatch();
@@ -124,7 +125,85 @@ export default function AppShell() {
     }
   }, [dispatch, currentProjectId]);
 
-  // No-op (removed to mount Layout immediately and show content skeletons instead of full-page spinner)
+  // 5. Realtime Socket.io initialization
+  useEffect(() => {
+    // Connect to the socket server
+    socket.connect();
+
+    socket.on("connect", () => {
+      console.log("⚡ Connected to real-time synchronization server");
+    });
+
+    socket.on("disconnect", () => {
+      console.log("🔌 Disconnected from real-time synchronization server");
+    });
+
+    socket.on("new_notification", (data) => {
+      console.log("🔔 New notification received via websocket:", data);
+      dispatch(pushNotification(data));
+    });
+
+    socket.on("task_created", (data) => {
+      console.log("📝 Task created event:", data);
+      dispatch(upsertTask(data));
+    });
+
+    socket.on("task_updated", (data) => {
+      console.log("✏️ Task updated event:", data);
+      dispatch(upsertTask(data));
+    });
+
+    socket.on("task_deleted", (data) => {
+      console.log("🗑️ Task deleted event:", data);
+      if (data && data.id) {
+        dispatch(deleteTask(data.id));
+      }
+    });
+
+    socket.on("sprint_created", (data) => {
+      console.log("🏃 Sprint created event:", data);
+      dispatch(upsertSprint(data));
+    });
+
+    socket.on("sprint_updated", (data) => {
+      console.log("🔄 Sprint updated event:", data);
+      dispatch(upsertSprint(data));
+    });
+
+    socket.on("sprint_deleted", (data) => {
+      console.log("❌ Sprint deleted event:", data);
+      if (data && data.id) {
+        dispatch(deleteSprint(data.id));
+      }
+    });
+
+    return () => {
+      socket.off("connect");
+      socket.off("disconnect");
+      socket.off("new_notification");
+      socket.off("task_created");
+      socket.off("task_updated");
+      socket.off("task_deleted");
+      socket.off("sprint_created");
+      socket.off("sprint_updated");
+      socket.off("sprint_deleted");
+      socket.disconnect();
+      console.log("🔌 Socket disconnected on AppShell unmount");
+    };
+  }, [dispatch]);
+
+  // 6. Manage project room subscription dynamically
+  useEffect(() => {
+    if (!currentProjectId) return;
+
+    console.log(`📁 Requesting to join room for project: ${currentProjectId}`);
+    socket.emit("join_project", currentProjectId);
+
+    return () => {
+      console.log(`📁 Leaving room for project: ${currentProjectId}`);
+      socket.emit("leave_project", currentProjectId);
+    };
+  }, [currentProjectId]);
 
   return (
     <div className="min-h-screen flex w-full bg-background text-foreground overflow-hidden">

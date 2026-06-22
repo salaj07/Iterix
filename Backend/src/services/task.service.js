@@ -104,6 +104,15 @@ const mapFrontendToTaskData = (data) => {
   return mapped;
 };
 
+const notifyTaskUpdate = (projectId, eventName, taskData) => {
+  try {
+    const { emitProjectEvent } = require("../socket");
+    emitProjectEvent(projectId, eventName, taskData);
+  } catch (err) {
+    console.error("Failed to emit task socket event:", err);
+  }
+};
+
 /**
  * Create Task
  */
@@ -146,7 +155,7 @@ const createTask = async (data, currentUser) => {
     }
   }
 
-  // Ensure assignee is not a Workspace Admin unless they are a Project Lead
+  // Ensure assignee is not a Workspace Admin unless they are a project member
   if (mappedData.assignee) {
     const isAssigneeAdmin = await WorkspaceMember.findOne({
       workspace: project.workspace,
@@ -156,15 +165,14 @@ const createTask = async (data, currentUser) => {
     });
 
     if (isAssigneeAdmin) {
-      const isAssigneeLead = await ProjectMember.findOne({
+      const isAssigneeMember = await ProjectMember.findOne({
         project: project._id,
         user: mappedData.assignee,
-        role: "TEAM_LEAD",
         isActive: true,
       });
 
-      if (!isAssigneeLead) {
-        throw new Error("Cannot assign tasks to workspace admins unless they are Project Leads");
+      if (!isAssigneeMember) {
+        throw new Error("Cannot assign tasks to workspace admins unless they are project members");
       }
     }
   }
@@ -204,7 +212,9 @@ const createTask = async (data, currentUser) => {
     }
   }
 
-  return mapTaskToFrontend(task);
+  const result = mapTaskToFrontend(task);
+  notifyTaskUpdate(task.project, "task_created", result);
+  return result;
 };
 
 /**
@@ -289,7 +299,7 @@ const assignTask = async (taskId, assigneeId, currentUser) => {
       throw new Error("Assignee is not a member of this project");
     }
 
-    // Ensure assignee is not a Workspace Admin unless they are a Project Lead
+    // Ensure assignee is not a Workspace Admin unless they are a project member
     const isAssigneeAdmin = await WorkspaceMember.findOne({
       workspace: project.workspace,
       user: assigneeId,
@@ -298,15 +308,14 @@ const assignTask = async (taskId, assigneeId, currentUser) => {
     });
 
     if (isAssigneeAdmin) {
-      const isAssigneeLead = await ProjectMember.findOne({
+      const isAssigneeMember = await ProjectMember.findOne({
         project: task.project,
         user: assigneeId,
-        role: "TEAM_LEAD",
         isActive: true,
       });
 
-      if (!isAssigneeLead) {
-        throw new Error("Cannot assign tasks to workspace admins unless they are Project Leads");
+      if (!isAssigneeMember) {
+        throw new Error("Cannot assign tasks to workspace admins unless they are project members");
       }
     }
 
@@ -328,7 +337,9 @@ const assignTask = async (taskId, assigneeId, currentUser) => {
     });
   }
 
-  return mapTaskToFrontend(task);
+  const result = mapTaskToFrontend(task);
+  notifyTaskUpdate(task.project, "task_updated", result);
+  return result;
 };
 
 /**
@@ -381,7 +392,9 @@ const moveToSprint = async (taskId, sprintId, currentUser) => {
   }
 
   await task.save();
-  return mapTaskToFrontend(task);
+  const result = mapTaskToFrontend(task);
+  notifyTaskUpdate(task.project, "task_updated", result);
+  return result;
 };
 
 /**
@@ -512,7 +525,9 @@ const changeTaskStatus = async (taskId, status, currentUser) => {
     }
   }
 
-  return mapTaskToFrontend(task);
+  const result = mapTaskToFrontend(task);
+  notifyTaskUpdate(task.project, "task_updated", result);
+  return result;
 };
 
 const approveTask = async (taskId, currentUser) => {
@@ -587,7 +602,9 @@ const approveTask = async (taskId, currentUser) => {
     });
   }
 
-  return mapTaskToFrontend(task);
+  const result = mapTaskToFrontend(task);
+  notifyTaskUpdate(task.project, "task_updated", result);
+  return result;
 };
 
 const requestChanges = async (taskId, note, currentUser) => {
@@ -663,7 +680,9 @@ const requestChanges = async (taskId, note, currentUser) => {
     });
   }
 
-  return mapTaskToFrontend(task);
+  const result = mapTaskToFrontend(task);
+  notifyTaskUpdate(task.project, "task_updated", result);
+  return result;
 };
 
 const updateTask = async (taskId, updateData, currentUser) => {
@@ -749,15 +768,14 @@ const updateTask = async (taskId, updateData, currentUser) => {
       });
 
       if (isAssigneeAdmin) {
-        const isAssigneeLead = await ProjectMember.findOne({
+        const isAssigneeMember = await ProjectMember.findOne({
           project: project._id,
           user: updateData.assigneeId,
-          role: "TEAM_LEAD",
           isActive: true,
         });
 
-        if (!isAssigneeLead) {
-          throw new Error("Cannot assign tasks to workspace admins unless they are Project Leads");
+        if (!isAssigneeMember) {
+          throw new Error("Cannot assign tasks to workspace admins unless they are project members");
         }
       }
     }
@@ -908,7 +926,9 @@ const updateTask = async (taskId, updateData, currentUser) => {
     }
   }
 
-  return mapTaskToFrontend(task);
+  const result = mapTaskToFrontend(task);
+  notifyTaskUpdate(task.project, "task_updated", result);
+  return result;
 };
 
 /**
@@ -946,6 +966,7 @@ const deleteTask = async (taskId, currentUser) => {
 
   await Task.findByIdAndDelete(taskId);
   await Comment.deleteMany({ task: taskId });
+  notifyTaskUpdate(task.project, "task_deleted", { id: taskId });
   return { id: taskId };
 };
 

@@ -68,6 +68,7 @@ const createSprint = async (data, currentUser) => {
     currentUser._id
   );
 
+  notifySprintUpdate(projectId, "sprint_created", sprint);
   return sprint;
 };
 
@@ -167,6 +168,7 @@ const startSprint = async (sprintId, currentUser) => {
     currentUser._id
   );
 
+  notifySprintUpdate(sprint.project, "sprint_updated", sprint);
   return sprint;
 };
 /**
@@ -222,6 +224,7 @@ const completeSprint = async (sprintId, currentUser) => {
     currentUser._id
   );
 
+  notifySprintUpdate(sprint.project, "sprint_updated", sprint);
   return sprint;
 };
 
@@ -262,8 +265,10 @@ const deleteSprint = async (sprintId, currentUser) => {
     { sprint: null }
   );
 
+  const projectId = sprint.project;
   // Delete the sprint
   await Sprint.findByIdAndDelete(sprintId);
+  notifySprintUpdate(projectId, "sprint_deleted", { id: sprintId });
   return { success: true, sprintId };
 };
 
@@ -287,6 +292,20 @@ const notifyProjectMembers = async (projectId, title, message, excludeUserId) =>
     }
   } catch (err) {
     console.error("Failed to notify project members:", err);
+  }
+};
+
+const notifySprintUpdate = (projectId, eventName, sprintDoc) => {
+  try {
+    const { emitProjectEvent } = require("../socket");
+    const sprintObj = sprintDoc.toObject ? sprintDoc.toObject() : sprintDoc;
+    emitProjectEvent(projectId, eventName, {
+      ...sprintObj,
+      id: sprintObj._id || sprintObj.id,
+      projectId: sprintObj.project ? String(sprintObj.project) : null,
+    });
+  } catch (err) {
+    console.error("Failed to emit sprint socket event:", err);
   }
 };
 

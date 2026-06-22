@@ -53,18 +53,6 @@ export default function KanbanPage() {
     }
   }, [dispatch, currentProjectId]);
 
-  // Polling Auto-Refresh every 20s when window is active
-  useEffect(() => {
-    if (!currentProjectId) return;
-    const interval = setInterval(() => {
-      if (document.visibilityState === "visible") {
-        dispatch(fetchSprints(currentProjectId));
-        dispatch(fetchProjectTasks(currentProjectId));
-      }
-    }, 20000);
-    return () => clearInterval(interval);
-  }, [dispatch, currentProjectId]);
-
   // Sync / Auto-select active sprint and filter states on load
   useEffect(() => {
     if (!currentProjectId) return;
