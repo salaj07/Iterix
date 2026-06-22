@@ -41,10 +41,9 @@ api.interceptors.response.use(
       const { logout } = await import("../store/slices/authSlice.js");
       store.dispatch(logout());
 
-      // Redirect to login only if not already there
-      if (!window.location.pathname.startsWith("/login")) {
-        window.location.href = "/login";
-      }
+      try {
+        localStorage.removeItem("Iterix-state-v1");
+      } catch (e) {}
     }
 
     return Promise.reject(error);
