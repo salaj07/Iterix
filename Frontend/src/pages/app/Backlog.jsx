@@ -63,17 +63,6 @@ export default function Backlog() {
     }
   }, [currentProjectId]);
 
-  // Polling Auto-Refresh every 20s when window is active
-  useEffect(() => {
-    if (!currentProjectId) return;
-    const interval = setInterval(() => {
-      if (document.visibilityState === "visible") {
-        dispatch(fetchProjectTasks(currentProjectId));
-      }
-    }, 20000);
-    return () => clearInterval(interval);
-  }, [dispatch, currentProjectId]);
-
   const handleQChange = (val) => {
     setQ(val);
     localStorage.setItem(`Iterix-backlog-filter-q-${currentProjectId}`, val);

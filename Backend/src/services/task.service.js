@@ -104,6 +104,15 @@ const mapFrontendToTaskData = (data) => {
   return mapped;
 };
 
+const notifyTaskUpdate = (projectId, eventName, taskData) => {
+  try {
+    const { emitProjectEvent } = require("../socket");
+    emitProjectEvent(projectId, eventName, taskData);
+  } catch (err) {
+    console.error("Failed to emit task socket event:", err);
+  }
+};
+
 /**
  * Create Task
  */
@@ -204,7 +213,9 @@ const createTask = async (data, currentUser) => {
     }
   }
 
-  return mapTaskToFrontend(task);
+  const result = mapTaskToFrontend(task);
+  notifyTaskUpdate(task.project, "task_created", result);
+  return result;
 };
 
 /**
@@ -328,7 +339,9 @@ const assignTask = async (taskId, assigneeId, currentUser) => {
     });
   }
 
-  return mapTaskToFrontend(task);
+  const result = mapTaskToFrontend(task);
+  notifyTaskUpdate(task.project, "task_updated", result);
+  return result;
 };
 
 /**
@@ -381,7 +394,9 @@ const moveToSprint = async (taskId, sprintId, currentUser) => {
   }
 
   await task.save();
-  return mapTaskToFrontend(task);
+  const result = mapTaskToFrontend(task);
+  notifyTaskUpdate(task.project, "task_updated", result);
+  return result;
 };
 
 /**
@@ -512,7 +527,9 @@ const changeTaskStatus = async (taskId, status, currentUser) => {
     }
   }
 
-  return mapTaskToFrontend(task);
+  const result = mapTaskToFrontend(task);
+  notifyTaskUpdate(task.project, "task_updated", result);
+  return result;
 };
 
 const approveTask = async (taskId, currentUser) => {
@@ -587,7 +604,9 @@ const approveTask = async (taskId, currentUser) => {
     });
   }
 
-  return mapTaskToFrontend(task);
+  const result = mapTaskToFrontend(task);
+  notifyTaskUpdate(task.project, "task_updated", result);
+  return result;
 };
 
 const requestChanges = async (taskId, note, currentUser) => {
@@ -663,7 +682,9 @@ const requestChanges = async (taskId, note, currentUser) => {
     });
   }
 
-  return mapTaskToFrontend(task);
+  const result = mapTaskToFrontend(task);
+  notifyTaskUpdate(task.project, "task_updated", result);
+  return result;
 };
 
 const updateTask = async (taskId, updateData, currentUser) => {
@@ -908,7 +929,9 @@ const updateTask = async (taskId, updateData, currentUser) => {
     }
   }
 
-  return mapTaskToFrontend(task);
+  const result = mapTaskToFrontend(task);
+  notifyTaskUpdate(task.project, "task_updated", result);
+  return result;
 };
 
 /**
@@ -946,6 +969,7 @@ const deleteTask = async (taskId, currentUser) => {
 
   await Task.findByIdAndDelete(taskId);
   await Comment.deleteMany({ task: taskId });
+  notifyTaskUpdate(task.project, "task_deleted", { id: taskId });
   return { id: taskId };
 };
 

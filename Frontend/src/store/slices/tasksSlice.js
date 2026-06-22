@@ -279,6 +279,27 @@ const slice = createSlice({
       const t = state.tasks.find((x) => x.id === id || x._id === id);
       if (t) Object.assign(t, mapTaskFromBackend({ ...t, ...payload, id }));
     },
+    upsertTask(state, { payload }) {
+      const id = payload.id || payload._id;
+      const mapped = mapTaskFromBackend({ ...payload, id });
+      const idx = state.tasks.findIndex((t) => t.id === id || t._id === id);
+      if (idx !== -1) {
+        state.tasks[idx] = {
+          subtasks: [],
+          comments: [],
+          history: [],
+          ...state.tasks[idx],
+          ...mapped,
+        };
+      } else {
+        state.tasks.push({
+          subtasks: [],
+          comments: [],
+          history: [],
+          ...mapped,
+        });
+      }
+    },
     deleteTask(state, { payload }) {
       state.tasks = state.tasks.filter((t) => t.id !== payload && t._id !== payload);
     },
@@ -461,7 +482,7 @@ const slice = createSlice({
 });
 
 export const {
-  createTask, seedTasks, moveTask, updateTask, deleteTask,
+  createTask, seedTasks, moveTask, updateTask, upsertTask, deleteTask,
   addComment, addSubtask, toggleSubtask,
   submitForReview, approveTask, rejectTask,
   archiveTask, unarchiveTask,
