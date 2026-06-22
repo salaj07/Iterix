@@ -350,9 +350,7 @@ const slice = createSlice({
       })
       .addCase(fetchProjectMembers.fulfilled, (state, { payload }) => {
         state.loadingMembers = false;
-        if (state.currentProjectId === payload.projectId) {
-          state.projectMembers = payload.members;
-        }
+        state.projectMembers = payload.members;
         // Update memberIds locally
         const proj = state.projects.find(p => p.id === payload.projectId);
         if (proj) {
@@ -366,7 +364,13 @@ const slice = createSlice({
     /* addProjectMemberAsync */
     builder
       .addCase(addProjectMemberAsync.fulfilled, (state, { payload }) => {
-        // Fetch project members again or add local item
+        const proj = state.projects.find(p => p.id === payload.projectId);
+        if (proj) {
+          const memberIds = proj.memberIds || [];
+          if (!memberIds.includes(payload.userId)) {
+            proj.memberIds = [...memberIds, payload.userId];
+          }
+        }
       });
 
     /* removeProjectMemberAsync */

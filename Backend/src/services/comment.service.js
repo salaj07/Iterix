@@ -23,11 +23,28 @@ const addComment = async ({ taskId, content }, currentUser) => {
     throw new Error("Access denied");
   }
 
-  return await Comment.create({
+  const comment = await Comment.create({
     task: taskId,
     user: currentUser._id,
     message: content,
   });
+
+  // Notify assignee of the task
+  if (task.assignee && task.assignee.toString() !== currentUser._id.toString()) {
+    try {
+      const { createNotification } = require("./notification.service");
+      await createNotification({
+        user: task.assignee,
+        title: "New Comment",
+        message: `${currentUser.name || "Someone"} commented on your task: "${task.title}".`,
+        type: "COMMENT",
+      });
+    } catch (err) {
+      console.error("Failed to create comment notification:", err);
+    }
+  }
+
+  return comment;
 };
 
 /**

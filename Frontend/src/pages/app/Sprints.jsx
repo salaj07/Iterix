@@ -8,6 +8,8 @@ import Modal from "@/components/common/Modal";
 import { formatDate } from "@/lib/format";
 import { fetchSprints, createSprintAsync, startSprintAsync, completeSprintAsync, deleteSprintAsync } from "@/store/slices/sprintsSlice";
 import { fetchProjectMembers } from "@/store/slices/projectsSlice";
+import { motion } from "framer-motion";
+import { cn } from "@/lib/utils";
 
 export default function Sprints() {
   const dispatch = useDispatch();
@@ -21,6 +23,12 @@ export default function Sprints() {
   const sprints = (allSprints || [])
     .filter((s) => s && s.projectId === currentProjectId)
     .sort((a, b) => new Date(b.createdAt || b.startDate || 0) - new Date(a.createdAt || a.startDate || 0));
+
+  const activeSprints = sprints.filter((s) => s.status === "active");
+  const plannedSprints = sprints.filter((s) => s.status === "planned");
+  const completedSprints = sprints.filter((s) => s.status === "completed");
+
+  const [activeTab, setActiveTab] = useState("active");
 
   const SprintSkeleton = () => (
     <div className="glass p-5 h-44 animate-pulse flex flex-col justify-between">
@@ -96,6 +104,7 @@ export default function Sprints() {
       toast.success("Sprint created");
       setForm({ name: "", goal: "", startDate: "", endDate: "" });
       setOpen(false);
+      setActiveTab("planned"); // switch to planned tab after creating a sprint
     } else {
       const errors = result.payload?.errors;
       toast.error(errors?.map((e) => e.message).join(", ") || result.payload?.message || "Failed to create sprint");
@@ -108,6 +117,7 @@ export default function Sprints() {
     const result = await dispatch(startSprintAsync(id));
     if (startSprintAsync.fulfilled.match(result)) {
       toast.success("Sprint started");
+      setActiveTab("active"); // switch to active tab when started
     } else {
       toast.error(result.payload?.message || "Failed to start sprint");
     }
@@ -118,6 +128,7 @@ export default function Sprints() {
     const result = await dispatch(completeSprintAsync(id));
     if (completeSprintAsync.fulfilled.match(result)) {
       toast.success("Sprint completed");
+      setActiveTab("completed"); // switch to history tab when completed
     } else {
       toast.error(result.payload?.message || "Failed to complete sprint");
     }
@@ -159,6 +170,19 @@ export default function Sprints() {
     );
   }
 
+  let displayedSprints = [];
+  let emptyMessage = "";
+  if (activeTab === "active") {
+    displayedSprints = activeSprints;
+    emptyMessage = "No active sprint. Start a planned sprint from the Planned Sprints tab to kick it off.";
+  } else if (activeTab === "planned") {
+    displayedSprints = plannedSprints;
+    emptyMessage = "No planned sprints. Click 'New sprint' to create one.";
+  } else if (activeTab === "completed") {
+    displayedSprints = completedSprints;
+    emptyMessage = "No completed sprints yet.";
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-end justify-between flex-wrap gap-4">
@@ -176,18 +200,34 @@ export default function Sprints() {
         )}
       </div>
 
+      {/* Tabs */}
+      <div className="flex items-center gap-1 border-b border-border overflow-x-auto">
+        {[
+          { id: "active", label: "Active Sprint", count: activeSprints.length },
+          { id: "planned", label: "Planned Sprints", count: plannedSprints.length },
+          { id: "completed", label: "Sprint History", count: completedSprints.length },
+        ].map(t => (
+          <button key={t.id} onClick={() => setActiveTab(t.id)}
+            className={cn("relative px-4 py-2.5 text-sm font-medium whitespace-nowrap flex items-center gap-1.5", activeTab === t.id ? "text-foreground" : "text-muted-foreground hover:text-foreground")}>
+            <span>{t.label}</span>
+            <span className="text-[10px] text-muted-foreground bg-foreground/5 rounded-full px-1.5 font-normal">{t.count}</span>
+            {activeTab === t.id && <motion.span layoutId="sprints-tab-bar" className="absolute bottom-0 left-2 right-2 h-[2px] bg-[color:var(--primary)] rounded-full" />}
+          </button>
+        ))}
+      </div>
+
       {loading && sprints.length === 0 ? (
         <div className="grid lg:grid-cols-2 gap-4">
           <SprintSkeleton />
           <SprintSkeleton />
         </div>
-      ) : sprints.length === 0 ? (
+      ) : displayedSprints.length === 0 ? (
         <GlassCard className="py-16 text-center">
-          <p className="text-sm text-muted-foreground">No sprints yet. Create one to start planning.</p>
+          <p className="text-sm text-muted-foreground">{emptyMessage}</p>
         </GlassCard>
       ) : (
         <div className="grid lg:grid-cols-2 gap-4">
-          {sprints.map((s) => {
+          {displayedSprints.map((s) => {
             const id = s._id || s.id;
             const sTasks = tasks.filter((t) => t.sprintId === id);
             const done = sTasks.filter((t) => t.status === "Done").length;

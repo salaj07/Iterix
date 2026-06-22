@@ -94,8 +94,31 @@ const sendInvitationEmail = async (email, workspaceName) => {
   await transporter.sendMail(mailOptions);
 };
 
+const sendNotificationEmail = async (email, subject, textContent) => {
+  const senderEmail = process.env.EMAIL_FROM || process.env.EMAIL_USER;
+  const mailOptions = {
+    from: `"Iterix" <${senderEmail}>`,
+    to: email,
+    subject: `Iterix: ${subject}`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width:600px; margin:auto; padding:20px; border: 1px solid #eee; border-radius: 8px;">
+        <h2 style="color: #FF6044;">Iterix Notification</h2>
+        <p>You have a new update on Iterix:</p>
+        <div style="background: #FFF2E1; padding: 16px; border-radius: 8px; font-weight: bold; margin-bottom: 20px;">
+          ${subject}
+        </div>
+        <p style="white-space: pre-wrap; line-height: 1.6; color: #333;">${textContent}</p>
+        <hr style="margin-top: 30px; border: none; border-top: 1px solid #eee;" />
+        <small style="color: #666;">This is an automated notification from Iterix.</small>
+      </div>
+    `,
+  };
+
+  await transporter.sendMail(mailOptions);
+};
 
 module.exports = {
   sendOTPEmail,
   sendInvitationEmail,
+  sendNotificationEmail,
 };

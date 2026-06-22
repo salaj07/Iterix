@@ -1,6 +1,7 @@
-import { useSelector } from "react-redux";
+import { useEffect, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import { Link } from "react-router-dom";
-import { GlassCard } from "@/components/common/Primitives";
+import { GlassCard, Select, Label } from "@/components/common/Primitives";
 import Button from "@/components/common/Button";
 import {
   BarChart, Bar, LineChart, Line, AreaChart, Area, ComposedChart,
@@ -8,11 +9,15 @@ import {
 } from "recharts";
 import { STATUSES } from "@/store/seed";
 import { FolderKanban } from "lucide-react";
+import { fetchSprints } from "@/store/slices/sprintsSlice";
+import { fetchProjectMembers } from "@/store/slices/projectsSlice";
+import { fetchProjectTasks } from "@/store/slices/tasksSlice";
 
 const chartColor = "var(--primary)";
 const gridColor = "color-mix(in oklab, currentColor 8%, transparent)";
 
 export default function Reports() {
+  const dispatch = useDispatch();
   const currentWorkspaceId = useSelector(s => s.workspace.currentWorkspaceId);
   const currentProjectId = useSelector(s => s.projects.currentProjectId);
   const allProjects = useSelector(s => s.projects.projects) || [];
@@ -29,13 +34,39 @@ export default function Reports() {
     .filter(s => s && s.projectId === currentProjectId)
     .sort((a, b) => new Date(a.createdAt || a.startDate || 0) - new Date(b.createdAt || b.startDate || 0));
 
+  // Fetch all necessary data on mount / project change
+  useEffect(() => {
+    if (currentProjectId) {
+      dispatch(fetchSprints(currentProjectId));
+      dispatch(fetchProjectMembers(currentProjectId));
+      dispatch(fetchProjectTasks(currentProjectId));
+    }
+  }, [dispatch, currentProjectId]);
+
+  const activeSprint = sprints.find(s => s.status === "active" || s.status === "ACTIVE");
+  const [selectedSprintId, setSelectedSprintId] = useState("all");
+
+  // Reset filter and default to active sprint when project changes
+  useEffect(() => {
+    const active = sprints.find(s => s.status === "active" || s.status === "ACTIVE");
+    if (active) {
+      setSelectedSprintId(active.id || active._id);
+    } else {
+      setSelectedSprintId("all");
+    }
+  }, [currentProjectId]);
+
+  const filteredTasks = selectedSprintId === "all"
+    ? tasks
+    : tasks.filter(t => t.sprintId === selectedSprintId);
+
   const velocity = sprints.map((s) => ({
     name: s.name.split("—")[0].trim().slice(0, 10),
     points: tasks.filter(t => t.sprintId === (s.id || s._id) && t.status === "Done").reduce((a, t) => a + (t.points || 0), 0),
   }));
   if (velocity.length === 0) velocity.push({ name: "No Sprints", points: 0 });
 
-  const statusBreakdown = STATUSES.map(s => ({ name: s, count: tasks.filter(t => t.status === s).length }));
+  const statusBreakdown = STATUSES.map(s => ({ name: s, count: filteredTasks.filter(t => t.status === s).length }));
 
   const workload = members.map(m => {
     const memberUser = m.user || m;
@@ -43,14 +74,17 @@ export default function Reports() {
     const memberName = memberUser.name || m.name || "Member";
     return {
       name: memberName.split(" ")[0],
-      open: tasks.filter(t => t.assigneeId === memberId && t.status !== "Done").length,
+      open: filteredTasks.filter(t => t.assigneeId === memberId && t.status !== "Done").length,
     };
   });
 
-  // burndown — realistic progression based on tasks in active sprint
-  const activeSprint = sprints.find(s => s.status === "active" || s.status === "ACTIVE");
-  const sprintTasks = activeSprint 
-    ? tasks.filter(t => t.sprintId === (activeSprint.id || activeSprint._id)) 
+  // burndown — realistic progression based on tasks in selected or active sprint
+  const displaySprint = selectedSprintId === "all"
+    ? activeSprint
+    : sprints.find(s => (s.id || s._id) === selectedSprintId);
+
+  const sprintTasks = displaySprint 
+    ? tasks.filter(t => t.sprintId === (displaySprint.id || displaySprint._id)) 
     : tasks;
   const totalPoints = sprintTasks.reduce((sum, t) => sum + (t.points || 0), 0) || sprintTasks.length || 10;
   const doneTasks = sprintTasks.filter(t => t.status === "Done");
@@ -95,12 +129,29 @@ export default function Reports() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <div className="text-xs text-muted-foreground tracking-wider uppercase font-semibold">
-          Project: {currentProject?.projectKey} · {currentProject?.name}
+      <div className="flex items-end justify-between flex-wrap gap-4">
+        <div>
+          <div className="text-xs text-muted-foreground tracking-wider uppercase font-semibold">
+            Project: {currentProject?.projectKey} · {currentProject?.name}
+          </div>
+          <h1 className="font-display text-3xl font-bold mt-1">Reports & analytics</h1>
+          <p className="text-sm text-muted-foreground mt-1">A calm view of how this project is performing.</p>
         </div>
-        <h1 className="font-display text-3xl font-bold mt-1">Reports & analytics</h1>
-        <p className="text-sm text-muted-foreground mt-1">A calm view of how this project is performing.</p>
+        <div className="flex items-center gap-2">
+          <Label className="text-xs font-medium whitespace-nowrap">Sprint Filter:</Label>
+          <Select
+            className="w-48 text-xs"
+            value={selectedSprintId}
+            onChange={(e) => setSelectedSprintId(e.target.value)}
+          >
+            <option value="all">All Sprints / Project Wide</option>
+            {sprints.map((s) => (
+              <option key={s.id || s._id} value={s.id || s._id}>
+                {s.name} ({s.status})
+              </option>
+            ))}
+          </Select>
+        </div>
       </div>
 
       <div className="grid lg:grid-cols-2 gap-5">
@@ -140,7 +191,7 @@ export default function Reports() {
           </ResponsiveContainer>
         </Card>
 
-        <Card title="Burn-down" subtitle={activeSprint ? `Remaining story points for "${activeSprint.name}"` : "Remaining story points for project tasks"}>
+        <Card title="Burn-down" subtitle={displaySprint ? `Remaining story points for "${displaySprint.name}"` : "Remaining story points for project tasks"}>
           <ResponsiveContainer width="100%" height={240}>
             <ComposedChart data={burndown}>
               <defs>

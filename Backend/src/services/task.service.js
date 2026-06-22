@@ -189,6 +189,21 @@ const createTask = async (data, currentUser) => {
     ],
   });
 
+  // Notify assignee if not the creator
+  if (task.assignee && task.assignee.toString() !== currentUser._id.toString()) {
+    try {
+      const { createNotification } = require("./notification.service");
+      await createNotification({
+        user: task.assignee,
+        title: "Task Assigned",
+        message: `You have been assigned to the task: "${task.title}".`,
+        type: "TASK_ASSIGNED",
+      });
+    } catch (err) {
+      console.error("Failed to send assignee notification on task create:", err);
+    }
+  }
+
   return mapTaskToFrontend(task);
 };
 
@@ -238,6 +253,8 @@ const assignTask = async (taskId, assigneeId, currentUser) => {
   if (!task) {
     throw new Error("Task not found");
   }
+
+  const oldAssignee = task.assignee ? task.assignee.toString() : null;
 
   const project = await Project.findById(task.project);
   const isAdmin = project && await WorkspaceMember.findOne({
@@ -299,6 +316,18 @@ const assignTask = async (taskId, assigneeId, currentUser) => {
   }
 
   await task.save();
+
+  const newAssignee = task.assignee ? task.assignee.toString() : null;
+  if (newAssignee && newAssignee !== oldAssignee && newAssignee !== currentUser._id.toString()) {
+    const { createNotification } = require("./notification.service");
+    await createNotification({
+      user: newAssignee,
+      title: "Task Assigned",
+      message: `You have been assigned to the task: "${task.title}".`,
+      type: "TASK_ASSIGNED",
+    });
+  }
+
   return mapTaskToFrontend(task);
 };
 
@@ -441,9 +470,47 @@ const changeTaskStatus = async (taskId, status, currentUser) => {
     });
   }
 
+  if (dbStatus === "DONE" && !isLead && !isAdmin) {
+    throw new Error("Only Project Leads or Workspace Admins can approve tasks and move them to Done");
+  }
+
+  const oldStatus = task.status;
   task.status = dbStatus;
   task.workflowStage = dbWorkflowStage;
   await task.save();
+
+  if (oldStatus !== dbStatus) {
+    const { createNotification } = require("./notification.service");
+    const projectLeads = await ProjectMember.find({
+      project: task.project,
+      role: "TEAM_LEAD",
+      isActive: true,
+    });
+
+    if (dbStatus === "IN_REVIEW") {
+      for (const lead of projectLeads) {
+        if (lead.user && lead.user.toString() !== currentUser._id.toString()) {
+          await createNotification({
+            user: lead.user,
+            title: "Task in Review",
+            message: `Task "${task.title}" has been moved to In Review.`,
+            type: "SPRINT",
+          });
+        }
+      }
+    } else if (dbStatus === "DONE") {
+      for (const lead of projectLeads) {
+        if (lead.user && lead.user.toString() !== currentUser._id.toString()) {
+          await createNotification({
+            user: lead.user,
+            title: "Task Completed",
+            message: `Task "${task.title}" has been moved to Done.`,
+            type: "TASK_APPROVED",
+          });
+        }
+      }
+    }
+  }
 
   return mapTaskToFrontend(task);
 };
@@ -489,6 +556,36 @@ const approveTask = async (taskId, currentUser) => {
   });
   task.status = "DONE";
   await task.save();
+
+  const { createNotification } = require("./notification.service");
+  
+  // Notify project leads
+  const projectLeads = await ProjectMember.find({
+    project: task.project,
+    role: "TEAM_LEAD",
+    isActive: true,
+  });
+
+  for (const lead of projectLeads) {
+    if (lead.user && lead.user.toString() !== currentUser._id.toString()) {
+      await createNotification({
+        user: lead.user,
+        title: "Task Approved",
+        message: `Task "${task.title}" has been approved.`,
+        type: "TASK_APPROVED",
+      });
+    }
+  }
+
+  // Notify assignee
+  if (task.assignee && task.assignee.toString() !== currentUser._id.toString()) {
+    await createNotification({
+      user: task.assignee,
+      title: "Task Approved",
+      message: `Your task "${task.title}" has been approved by ${currentUser.name || "Project Lead"}.`,
+      type: "TASK_APPROVED",
+    });
+  }
 
   return mapTaskToFrontend(task);
 };
@@ -536,7 +633,35 @@ const requestChanges = async (taskId, note, currentUser) => {
   task.status = "IN_PROGRESS";
   await task.save();
 
-  return mapTaskToFrontend(task);
+  const { createNotification } = require("./notification.service");
+
+  // Notify project leads
+  const projectLeads = await ProjectMember.find({
+    project: task.project,
+    role: "TEAM_LEAD",
+    isActive: true,
+  });
+
+  for (const lead of projectLeads) {
+    if (lead.user && lead.user.toString() !== currentUser._id.toString()) {
+      await createNotification({
+        user: lead.user,
+        title: "Changes Requested",
+        message: `Changes were requested on task "${task.title}".`,
+        type: "TASK_REJECTED",
+      });
+    }
+  }
+
+  // Notify assignee
+  if (task.assignee && task.assignee.toString() !== currentUser._id.toString()) {
+    await createNotification({
+      user: task.assignee,
+      title: "Changes Requested",
+      message: `Changes were requested on "${task.title}": "${note || ""}"`,
+      type: "TASK_REJECTED",
+    });
+  }
 
   return mapTaskToFrontend(task);
 };
@@ -547,6 +672,8 @@ const updateTask = async (taskId, updateData, currentUser) => {
   if (!task) {
     throw new Error("Task not found");
   }
+
+  const oldAssignee = task.assignee ? task.assignee.toString() : null;
 
   // Check if current user is assignee, TEAM_LEAD, or Workspace ADMIN
   const isAssignee = task.assignee && String(task.assignee) === String(currentUser._id);
@@ -591,6 +718,9 @@ const updateTask = async (taskId, updateData, currentUser) => {
     }
     if (updateData.archived !== undefined) {
       throw new Error("Only Project Leads or Workspace Admins can archive tasks");
+    }
+    if (updateData.status === "Done") {
+      throw new Error("Only Project Leads or Workspace Admins can approve tasks and move them to Done");
     }
     if (updateData.assigneeId !== undefined && updateData.assigneeId !== null && String(updateData.assigneeId) !== String(currentUser._id)) {
       throw new Error("As a Team Member, you can only assign tasks to yourself or leave them unassigned.");
@@ -708,6 +838,7 @@ const updateTask = async (taskId, updateData, currentUser) => {
     } else {
       dbStatus = status;
     }
+    const oldStatus = task.status;
     if (task.status !== dbStatus || task.workflowStage !== dbWorkflowStage) {
       const fromStatus = task.workflowStage === "BACKLOG" ? "Backlog" : mapStatusToFrontend(task.status);
       const toStatus = dbWorkflowStage === "BACKLOG" ? "Backlog" : mapStatusToFrontend(dbStatus);
@@ -718,12 +849,65 @@ const updateTask = async (taskId, updateData, currentUser) => {
         from: fromStatus,
         to: toStatus,
       });
+      task.status = dbStatus;
+      task.workflowStage = dbWorkflowStage;
+
+      if (oldStatus !== dbStatus) {
+        try {
+          const { createNotification } = require("./notification.service");
+          const projectLeads = await ProjectMember.find({
+            project: task.project,
+            role: "TEAM_LEAD",
+            isActive: true,
+          });
+
+          if (dbStatus === "IN_REVIEW") {
+            for (const lead of projectLeads) {
+              if (lead.user && lead.user.toString() !== currentUser._id.toString()) {
+                await createNotification({
+                  user: lead.user,
+                  title: "Task in Review",
+                  message: `Task "${task.title}" has been moved to In Review.`,
+                  type: "SPRINT",
+                });
+              }
+            }
+          } else if (dbStatus === "DONE") {
+            for (const lead of projectLeads) {
+              if (lead.user && lead.user.toString() !== currentUser._id.toString()) {
+                await createNotification({
+                  user: lead.user,
+                  title: "Task Completed",
+                  message: `Task "${task.title}" has been moved to Done.`,
+                  type: "TASK_APPROVED",
+                });
+              }
+            }
+          }
+        } catch (err) {
+          console.error("Failed to send status change notifications in updateTask:", err);
+        }
+      }
     }
-    task.status = dbStatus;
-    task.workflowStage = dbWorkflowStage;
   }
 
   await task.save();
+
+  const newAssignee = task.assignee ? task.assignee.toString() : null;
+  if (newAssignee && newAssignee !== oldAssignee && newAssignee !== currentUser._id.toString()) {
+    try {
+      const { createNotification } = require("./notification.service");
+      await createNotification({
+        user: newAssignee,
+        title: "Task Assigned",
+        message: `You have been assigned to the task: "${task.title}".`,
+        type: "TASK_ASSIGNED",
+      });
+    } catch (err) {
+      console.error("Failed to send assignee notification on task update:", err);
+    }
+  }
+
   return mapTaskToFrontend(task);
 };
 
