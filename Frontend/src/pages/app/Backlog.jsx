@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { motion } from "framer-motion";
 import { Search, Filter, Plus, ArrowRight, Trash2, FolderKanban } from "lucide-react";
@@ -6,7 +6,7 @@ import Button from "@/components/common/Button";
 import { Input, Select, Badge, GlassCard } from "@/components/common/Primitives";
 import Avatar from "@/components/common/Avatar";
 import { openTask } from "@/store/slices/uiSlice";
-import { moveTask, deleteTaskAsync, updateTask, moveToSprintAsync, changeTaskStatusAsync } from "@/store/slices/tasksSlice";
+import { moveTask, deleteTaskAsync, updateTask, moveToSprintAsync, changeTaskStatusAsync, fetchProjectTasks } from "@/store/slices/tasksSlice";
 import { priorityTone, typeTone } from "@/lib/format";
 import { PRIORITIES, TASK_TYPES } from "@/store/seed";
 import { can, ACTIONS } from "@/lib/rbac";
@@ -34,18 +34,77 @@ export default function Backlog() {
   const myWorkspaceMember = workspaceMembers.find(m => m && m.id === user?.id);
   const role = myWorkspaceMember?.role;
 
-  const [q, setQ] = useState("");
-  const [priority, setPriority] = useState("");
-  const [type, setType] = useState("");
+  // Find project member and role
+  const myProjectMember = projectMembers.find(pm => pm && (pm.id === user?.id || pm.userId === user?.id || (pm.user && pm.user._id === user?.id)));
+  const projectRole = myProjectMember?.role || "DEVELOPER";
+  const isProjectLead = role === "ADMIN" || projectRole === "TEAM_LEAD" || currentProject?.teamLeadId === user?.id || currentProject?.createdBy === user?.id;
+
+  const [q, setQ] = useState(() => {
+    return localStorage.getItem(`Iterix-backlog-filter-q-${currentProjectId}`) || "";
+  });
+  const [priority, setPriority] = useState(() => {
+    return localStorage.getItem(`Iterix-backlog-filter-priority-${currentProjectId}`) || "";
+  });
+  const [type, setType] = useState(() => {
+    return localStorage.getItem(`Iterix-backlog-filter-type-${currentProjectId}`) || "";
+  });
+  const [assigneeId, setAssigneeId] = useState(() => {
+    return localStorage.getItem(`Iterix-backlog-filter-assignee-${currentProjectId}`) || "";
+  });
   const [open, setOpen] = useState(false);
 
+  // Sync state when project changes
+  useEffect(() => {
+    if (currentProjectId) {
+      setQ(localStorage.getItem(`Iterix-backlog-filter-q-${currentProjectId}`) || "");
+      setPriority(localStorage.getItem(`Iterix-backlog-filter-priority-${currentProjectId}`) || "");
+      setType(localStorage.getItem(`Iterix-backlog-filter-type-${currentProjectId}`) || "");
+      setAssigneeId(localStorage.getItem(`Iterix-backlog-filter-assignee-${currentProjectId}`) || "");
+    }
+  }, [currentProjectId]);
+
+  // Polling Auto-Refresh every 20s when window is active
+  useEffect(() => {
+    if (!currentProjectId) return;
+    const interval = setInterval(() => {
+      if (document.visibilityState === "visible") {
+        dispatch(fetchProjectTasks(currentProjectId));
+      }
+    }, 20000);
+    return () => clearInterval(interval);
+  }, [dispatch, currentProjectId]);
+
+  const handleQChange = (val) => {
+    setQ(val);
+    localStorage.setItem(`Iterix-backlog-filter-q-${currentProjectId}`, val);
+  };
+  const handlePriorityChange = (val) => {
+    setPriority(val);
+    localStorage.setItem(`Iterix-backlog-filter-priority-${currentProjectId}`, val);
+  };
+  const handleTypeChange = (val) => {
+    setType(val);
+    localStorage.setItem(`Iterix-backlog-filter-type-${currentProjectId}`, val);
+  };
+  const handleAssigneeChange = (val) => {
+    setAssigneeId(val);
+    localStorage.setItem(`Iterix-backlog-filter-assignee-${currentProjectId}`, val);
+  };
+
   const backlog = useMemo(() => tasks.filter(t => {
-    if (t.status !== "Backlog") return false;
+    if (t.sprintId) return false;
     if (priority && t.priority !== priority) return false;
     if (type && t.type !== type) return false;
+    if (assigneeId) {
+      if (assigneeId === "unassigned") {
+        if (t.assigneeId) return false;
+      } else {
+        if (t.assigneeId !== assigneeId) return false;
+      }
+    }
     if (q && !t.title.toLowerCase().includes(q.toLowerCase())) return false;
     return true;
-  }), [tasks, q, priority, type]);
+  }), [tasks, q, priority, type, assigneeId]);
 
   const addToSprint = (t) => {
     const active = sprints.find(s => s.status === "active");
@@ -98,13 +157,20 @@ export default function Backlog() {
         <div className="flex flex-wrap gap-2 items-center">
           <div className="relative flex-1 min-w-[200px]">
             <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <Input value={q} onChange={(e) => setQ(e.target.value)} className="h-10 pl-9" placeholder="Search backlog…" />
+            <Input value={q} onChange={(e) => handleQChange(e.target.value)} className="h-10 pl-9" placeholder="Search backlog…" />
           </div>
-          <Select className="w-36" value={priority} onChange={(e) => setPriority(e.target.value)}>
+          <Select className="w-40" value={assigneeId} onChange={(e) => handleAssigneeChange(e.target.value)}>
+            <option value="">Any assignee</option>
+            <option value="unassigned">Unassigned</option>
+            {projectMembers.map(m => (
+              <option key={m.id} value={m.id}>{m.name}</option>
+            ))}
+          </Select>
+          <Select className="w-36" value={priority} onChange={(e) => handlePriorityChange(e.target.value)}>
             <option value="">Any priority</option>
             {PRIORITIES.map(p => <option key={p}>{p}</option>)}
           </Select>
-          <Select className="w-32" value={type} onChange={(e) => setType(e.target.value)}>
+          <Select className="w-32" value={type} onChange={(e) => handleTypeChange(e.target.value)}>
             <option value="">Any type</option>
             {TASK_TYPES.map(t => <option key={t}>{t}</option>)}
           </Select>
@@ -120,29 +186,48 @@ export default function Backlog() {
         ) : (
           <div className="divide-y divide-border">
             <div className="hidden md:grid grid-cols-12 gap-3 px-4 py-2.5 text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
-              <div className="col-span-6">Title</div>
+              <div className="col-span-5">Title</div>
+              <div className="col-span-2">Status</div>
               <div className="col-span-2">Type</div>
-              <div className="col-span-2">Priority</div>
+              <div className="col-span-1">Priority</div>
               <div className="col-span-1">Pts</div>
               <div className="col-span-1 text-right">Actions</div>
             </div>
             {backlog.map((t) => {
-              // Find assignee in workspaceMembers or projectMembers
-              const assignee = workspaceMembers.find(m => m.id === t.assigneeId);
+              const isAssignee = t.assigneeId === user?.id;
+              const canChangeStatus = isProjectLead || isAssignee;
               return (
                 <motion.div
                   key={t.id}
                   whileHover={{ backgroundColor: "rgba(255,96,68,0.04)" }}
                   className="grid grid-cols-12 gap-3 px-4 py-3 items-center"
                 >
-                  <button onClick={() => dispatch(openTask(t.id))} className="col-span-12 md:col-span-6 text-left text-sm font-medium hover:text-[color:var(--primary)] truncate">
+                  <button onClick={() => dispatch(openTask(t.id))} className="col-span-12 md:col-span-5 text-left text-sm font-medium hover:text-[color:var(--primary)] truncate">
                     {t.title}
                   </button>
+                  <div className="col-span-3 md:col-span-2">
+                    <Select
+                      value={t.status}
+                      disabled={!canChangeStatus}
+                      onChange={(e) => {
+                        const newStatus = e.target.value;
+                        dispatch(moveTask({ id: t.id, status: newStatus, by: user?.id }));
+                        dispatch(changeTaskStatusAsync({ taskId: t.id, status: newStatus }));
+                      }}
+                      className="h-8 py-0 px-2 text-xs w-28"
+                    >
+                      <option value="Backlog">Backlog</option>
+                      <option value="Todo">Todo</option>
+                      <option value="In Progress">In Progress</option>
+                      <option value="In Review">In Review</option>
+                      {isProjectLead && <option value="Done">Done</option>}
+                    </Select>
+                  </div>
                   <div className="col-span-3 md:col-span-2"><Badge tone={typeTone(t.type)} className="border-transparent">{t.type}</Badge></div>
-                  <div className="col-span-3 md:col-span-2"><Badge tone={priorityTone(t.priority)}>{t.priority}</Badge></div>
+                  <div className="col-span-3 md:col-span-1"><Badge tone={priorityTone(t.priority)}>{t.priority}</Badge></div>
                   <div className="col-span-2 md:col-span-1 text-sm text-muted-foreground">{t.points ?? "—"}</div>
                   <div className="col-span-4 md:col-span-1 flex justify-end gap-1">
-                    {can(role, ACTIONS.MOVE_TASK_ANY) && (
+                    {isProjectLead && (
                       <button onClick={() => addToSprint(t)} title="Add to active sprint"
                         className="p-1.5 rounded-md hover:bg-foreground/5 text-muted-foreground hover:text-[color:var(--primary)]">
                         <ArrowRight size={15} />

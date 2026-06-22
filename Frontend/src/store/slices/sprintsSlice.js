@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import * as sprintApi from "@/services/sprint.api";
+import { clearWorkspaceDataAsync } from "./workspaceSlice";
 
 /* ─── Mapping Helper ────────────────────────────────────────────────── */
 
@@ -192,6 +193,12 @@ const slice = createSlice({
         if (id) {
           state.sprints = state.sprints.filter(s => s.id !== id && s._id !== id);
         }
+      });
+
+    /* clearWorkspaceDataAsync */
+    builder
+      .addCase(clearWorkspaceDataAsync.fulfilled, (state) => {
+        state.sprints = [];
       });
   },
 });

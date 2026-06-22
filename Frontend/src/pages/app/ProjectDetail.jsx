@@ -1,11 +1,11 @@
 import { useParams, Link } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
 import { useState, useEffect } from "react";
-import { setCurrentProjectId, updateProjectAsync, fetchProjectMembers } from "@/store/slices/projectsSlice";
+import { setCurrentProjectId, updateProjectAsync, fetchProjectMembers, addProjectMemberAsync, removeProjectMemberAsync, updateProjectMemberRoleAsync } from "@/store/slices/projectsSlice";
 import { motion } from "framer-motion";
-import { ArrowLeft, Plus, Clock, RotateCcw, Archive, Loader2 } from "lucide-react";
+import { ArrowLeft, Plus, Clock, RotateCcw, Archive, Loader2, Trash2, UserPlus } from "lucide-react";
 import { toast } from "sonner";
-import { GlassCard, Badge, Input, Label, Textarea } from "@/components/common/Primitives";
+import { GlassCard, Badge, Input, Label, Textarea, Select } from "@/components/common/Primitives";
 import Modal from "@/components/common/Modal";
 import Button from "@/components/common/Button";
 import Avatar from "@/components/common/Avatar";
@@ -51,6 +51,16 @@ export default function ProjectDetail() {
   const [editOpen, setEditOpen] = useState(false);
   const [editForm, setEditForm] = useState({ name: "", key: "", description: "" });
   const [updating, setUpdating] = useState(false);
+
+  const [membersModalOpen, setMembersModalOpen] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState("");
+  const [selectedRole, setSelectedRole] = useState("DEVELOPER");
+  const [memberLoading, setMemberLoading] = useState(false);
+
+  const availableWorkspaceMembers = members.filter(m => {
+    const inProject = projectMembers.some(pm => (pm.id || pm.userId || pm.user?._id || pm.user) === m.id);
+    return !inProject;
+  });
 
   useEffect(() => {
     if (project) {
@@ -143,7 +153,12 @@ export default function ProjectDetail() {
         <div className="grid lg:grid-cols-3 gap-5">
           <div className="lg:col-span-2 space-y-5">
             <GlassCard>
-              <h3 className="font-display font-semibold mb-3">Team</h3>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-display font-semibold">Team</h3>
+                {canEditProject && (
+                  <Button variant="ghost" size="xs" onClick={() => setMembersModalOpen(true)}>Manage</Button>
+                )}
+              </div>
               <div className="space-y-2.5">
                 {memberObjs.map(m => (
                   <div key={m.id} className="flex items-center gap-3">
@@ -310,6 +325,109 @@ export default function ProjectDetail() {
             <Label>Description</Label>
             <Textarea className="mt-1.5" value={editForm.description}
               onChange={(e) => setEditForm({ ...editForm, description: e.target.value })} rows={3} />
+          </div>
+        </div>
+      </Modal>
+
+      <Modal open={membersModalOpen} onClose={() => setMembersModalOpen(false)} title="Manage Project Members" size="md">
+        <div className="space-y-6">
+          {/* Add member section */}
+          <GlassCard className="p-4 space-y-4">
+            <h4 className="font-display font-semibold text-sm">Add member to project</h4>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Select Member</Label>
+                <Select className="mt-1.5 w-full text-xs" value={selectedUserId} onChange={e => setSelectedUserId(e.target.value)}>
+                  <option value="">Choose a member…</option>
+                  {availableWorkspaceMembers.map(m => (
+                    <option key={m.id} value={m.id}>{m.name} ({m.email})</option>
+                  ))}
+                </Select>
+              </div>
+              <div>
+                <Label>Project Role</Label>
+                <Select className="mt-1.5 w-full text-xs" value={selectedRole} onChange={e => setSelectedRole(e.target.value)}>
+                  <option value="DEVELOPER">Developer / Team Member</option>
+                  <option value="TEAM_LEAD">Team Lead</option>
+                </Select>
+              </div>
+            </div>
+            <div className="flex justify-end pt-1">
+              <Button size="sm" disabled={!selectedUserId || memberLoading} onClick={async () => {
+                setMemberLoading(true);
+                const res = await dispatch(addProjectMemberAsync({ projectId: id, userId: selectedUserId, role: selectedRole }));
+                if (addProjectMemberAsync.fulfilled.match(res)) {
+                  toast.success("Member added to project");
+                  setSelectedUserId("");
+                  dispatch(fetchProjectMembers(id));
+                } else {
+                  toast.error(res.payload?.message || "Failed to add member");
+                }
+                setMemberLoading(false);
+              }}>
+                Add member
+              </Button>
+            </div>
+          </GlassCard>
+
+          {/* Current members list */}
+          <div className="space-y-3">
+            <h4 className="font-display font-semibold text-sm px-1">Current Members ({projectMembers.length})</h4>
+            <div className="space-y-2 max-h-64 overflow-y-auto border border-border/40 rounded-xl p-2 bg-foreground/[0.01]">
+              {projectMembers.map(pm => {
+                const memberId = pm.id || pm.userId || pm.user?._id || pm.user;
+                const name = pm.name || pm.user?.name || "Unknown";
+                const email = pm.email || pm.user?.email || "";
+                const avatarColor = pm.avatarColor || pm.user?.avatarColor;
+                
+                return (
+                  <div key={memberId} className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-foreground/5">
+                    <Avatar name={name} color={avatarColor} size={32} />
+                    <div className="min-w-0 flex-1">
+                      <div className="text-xs font-semibold truncate">{name}</div>
+                      <div className="text-[10px] text-muted-foreground truncate">{email}</div>
+                    </div>
+                    
+                    {/* Role select */}
+                    <Select
+                      className="w-32 h-8 text-[11px]"
+                      value={pm.role}
+                      onChange={async (e) => {
+                        const newRole = e.target.value;
+                        const res = await dispatch(updateProjectMemberRoleAsync({ projectId: id, userId: memberId, role: newRole }));
+                        if (updateProjectMemberRoleAsync.fulfilled.match(res)) {
+                          toast.success("Role updated successfully");
+                          dispatch(fetchProjectMembers(id));
+                        } else {
+                          toast.error(res.payload?.message || "Failed to update role");
+                        }
+                      }}
+                    >
+                      <option value="DEVELOPER">Developer</option>
+                      <option value="TEAM_LEAD">Team Lead</option>
+                    </Select>
+
+                    {/* Remove button */}
+                    <button
+                      className="p-1 rounded text-muted-foreground hover:text-red-500 hover:bg-red-500/10 transition-colors cursor-pointer"
+                      onClick={async () => {
+                        if (window.confirm(`Are you sure you want to remove ${name} from this project?`)) {
+                          const res = await dispatch(removeProjectMemberAsync({ projectId: id, userId: memberId }));
+                          if (removeProjectMemberAsync.fulfilled.match(res)) {
+                            toast.success("Member removed from project");
+                            dispatch(fetchProjectMembers(id));
+                          } else {
+                            toast.error(res.payload?.message || "Failed to remove member");
+                          }
+                        }
+                      }}
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
       </Modal>

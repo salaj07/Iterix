@@ -9,12 +9,28 @@ const createNotification = async ({
   message,
   type,
 }) => {
-  return await Notification.create({
+  const notif = await Notification.create({
     user,
     title,
     message,
     type,
   });
+
+  // Send email alerts for critical events
+  if (type === "TASK_ASSIGNED" || type === "SPRINT" || type === "TASK_APPROVED" || type === "TASK_REJECTED" || type === "COMMENT") {
+    try {
+      const User = require("../models/user.model");
+      const { sendNotificationEmail } = require("./email.service");
+      const targetUser = await User.findById(user);
+      if (targetUser && targetUser.email) {
+        await sendNotificationEmail(targetUser.email, title, message);
+      }
+    } catch (err) {
+      console.error("Failed to send notification email", err);
+    }
+  }
+
+  return notif;
 };
 
 /**

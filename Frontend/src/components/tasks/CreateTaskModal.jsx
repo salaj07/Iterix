@@ -4,7 +4,7 @@ import Modal from "@/components/common/Modal";
 import Button from "@/components/common/Button";
 import { Input, Label, Select, Textarea } from "@/components/common/Primitives";
 import { createTaskAsync } from "@/store/slices/tasksSlice";
-import { push as pushNotif } from "@/store/slices/notificationsSlice";
+import { fetchProjectMembers } from "@/store/slices/projectsSlice";
 import { PRIORITIES, TASK_TYPES, STATUSES } from "@/store/seed";
 
 export default function CreateTaskModal({ open, onClose, projectId, defaultStatus = "Backlog", defaultSprintId = undefined }) {
@@ -25,6 +25,7 @@ export default function CreateTaskModal({ open, onClose, projectId, defaultStatu
   const [assigneeId, setAssigneeId] = useState("");
   const [proj, setProj] = useState(projectId || projects[0]?.id || "");
   const [sprintId, setSprintId] = useState("");
+  const [dueDate, setDueDate] = useState("");
 
   const projectSprints = sprints.filter(s => s && s.projectId === proj);
   const selectedProject = projects.find(p => p.id === proj);
@@ -34,6 +35,7 @@ export default function CreateTaskModal({ open, onClose, projectId, defaultStatu
     (selectedProject?.id === currentProjectId || selectedProject?._id === currentProjectId) &&
     storeProjectMembers.some(x => (x.id || x.userId || x.user?._id || x.user) === user?.id && x.role === "TEAM_LEAD")
   );
+  const isDevRestricted = isDeveloper && !isMeAdmin && !isMeLead;
   const projectMembers = members.filter(m => {
     const isMember = selectedProject?.memberIds?.includes(m.id) || m.id === selectedProject?.createdBy;
     if (!isMember) return false;
@@ -61,6 +63,7 @@ export default function CreateTaskModal({ open, onClose, projectId, defaultStatu
       setPoints(3);
       setAssigneeId("");
       setProj(projectId || projects[0]?.id || "");
+      setDueDate("");
 
       // Default to passed defaultSprintId, or active sprint of the selected project, or backlog
       const activeSprint = sprints.find(s => s.projectId === (projectId || projects[0]?.id) && s.status === "active");
@@ -80,6 +83,13 @@ export default function CreateTaskModal({ open, onClose, projectId, defaultStatu
     }
   }, [proj, open, sprints]);
 
+  // Fetch project members when modal is opened or selected project changes
+  useEffect(() => {
+    if (open && proj) {
+      dispatch(fetchProjectMembers(proj));
+    }
+  }, [open, proj, dispatch]);
+
   const submit = () => {
     if (!title.trim() || !proj) return;
     dispatch(createTaskAsync({
@@ -87,10 +97,8 @@ export default function CreateTaskModal({ open, onClose, projectId, defaultStatu
       points: Number(points), status,
       projectId: proj, sprintId: sprintId || null,
       assigneeId: assigneeId || null, reporterId: user.id,
+      dueDate: dueDate ? new Date(dueDate).toISOString() : null,
     }));
-    if (assigneeId && assigneeId !== user.id) {
-      dispatch(pushNotif({ userId: assigneeId, type: "task_assigned", title: "Task assigned", body: `${user.name} assigned you "${title.trim()}"` }));
-    }
     setTitle(""); setDescription(""); setAssigneeId("");
     onClose();
   };
@@ -129,13 +137,17 @@ export default function CreateTaskModal({ open, onClose, projectId, defaultStatu
           </div>
           <div>
             <Label>Priority</Label>
-            <Select className="mt-1.5" disabled={isDeveloper} value={priority} onChange={(e) => setPriority(e.target.value)}>
+            <Select className="mt-1.5" disabled={isDevRestricted} value={priority} onChange={(e) => setPriority(e.target.value)}>
               {PRIORITIES.map(p => <option key={p}>{p}</option>)}
             </Select>
           </div>
-          <div className="col-span-2">
+          <div>
             <Label>Story points</Label>
-            <Input className="mt-1.5" type="number" disabled={isDeveloper} min={0} value={points} onChange={(e) => setPoints(e.target.value)} />
+            <Input className="mt-1.5" type="number" disabled={isDevRestricted} min={0} value={points} onChange={(e) => setPoints(e.target.value)} />
+          </div>
+          <div>
+            <Label>Due date</Label>
+            <Input className="mt-1.5" type="date" disabled={isDevRestricted} value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
           </div>
         </div>
       </div>

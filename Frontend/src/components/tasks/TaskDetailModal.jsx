@@ -14,7 +14,7 @@ import {
   changeTaskStatusAsync, assignTaskAsync, approveTaskAsync, requestChangesAsync,
   updateTaskDetailsAsync, fetchCommentsAsync, addCommentAsync, deleteTaskAsync,
 } from "@/store/slices/tasksSlice";
-import { push as pushNotif } from "@/store/slices/notificationsSlice";
+import { fetchProjectMembers } from "@/store/slices/projectsSlice";
 import { PRIORITIES, ROLES } from "@/store/seed";
 import { can, ACTIONS } from "@/lib/rbac";
 
@@ -40,6 +40,12 @@ export default function TaskDetailModal({ taskId, onClose }) {
       dispatch(fetchCommentsAsync(taskId));
     }
   }, [taskId, dispatch]);
+
+  useEffect(() => {
+    if (task?.projectId) {
+      dispatch(fetchProjectMembers(task.projectId));
+    }
+  }, [task?.projectId, dispatch]);
 
   const hasChanges = Object.keys(edited).length > 0;
 
@@ -72,22 +78,14 @@ export default function TaskDetailModal({ taskId, onClose }) {
     (project?.id === currentProjectId || project?._id === currentProjectId) &&
     storeProjectMembers.some(x => (x.id || x.userId || x.user?._id || x.user) === user?.id && x.role === "TEAM_LEAD")
   );
-  const projectMembers = members.filter(m => {
-    const isMember = project?.memberIds?.includes(m.id) || m.id === project?.createdBy;
-    if (!isMember) return false;
-    if (m.role !== "ADMIN") return true;
-
-    if (project?.teamLeadId === m.id || project?.createdBy === m.id) {
-      return true;
-    }
-    if (project?.id === currentProjectId || project?._id === currentProjectId) {
-      const pm = storeProjectMembers.find(x => (x.id || x.userId || x.user?._id || x.user) === m.id);
-      if (pm && pm.role === "TEAM_LEAD") {
-        return true;
-      }
-    }
-    return false;
-  });
+  const isDevRestricted = isDeveloper && !isMeAdmin && !isMeLead;
+  const projectMembers = storeProjectMembers.map(pm => {
+    const memberUser = pm.user || pm;
+    const userId = pm.id || pm.userId || memberUser._id || memberUser.id || pm.user;
+    const name = pm.name || memberUser.name || "Unknown";
+    const email = pm.email || memberUser.email || "";
+    return { id: String(userId), name, email };
+  }).filter(m => m.id);
   const isAssignee = task.assigneeId && task.assigneeId === user?.id;
   const canMoveAny = can(role, ACTIONS.MOVE_TASK_ANY);
   const canReview = can(role, ACTIONS.APPROVE_TASK) && task.status === "In Review";
@@ -100,9 +98,6 @@ export default function TaskDetailModal({ taskId, onClose }) {
   const submitComment = () => {
     if (!comment.trim()) return;
     dispatch(addCommentAsync({ taskId: task.id, content: comment.trim() }));
-    if (task.assigneeId && task.assigneeId !== user.id) {
-      dispatch(pushNotif({ userId: task.assigneeId, type: "comment", title: "New comment", body: `${user.name} commented on ${task.title}` }));
-    }
     setComment("");
   };
 
@@ -115,14 +110,12 @@ export default function TaskDetailModal({ taskId, onClose }) {
   const doApprove = () => {
     dispatch(approveTask({ id: task.id, by: user.id }));
     dispatch(approveTaskAsync(task.id));
-    if (task.assigneeId) dispatch(pushNotif({ userId: task.assigneeId, type: "task_approved", title: "Task approved", body: `${task.title} was approved by ${user.name}` }));
   };
 
   const doReject = () => {
     if (!rejectNote.trim()) return;
     dispatch(rejectTask({ id: task.id, by: user.id, note: rejectNote.trim() }));
     dispatch(requestChangesAsync({ taskId: task.id, note: rejectNote.trim() }));
-    if (task.assigneeId) dispatch(pushNotif({ userId: task.assigneeId, type: "task_rejected", title: "Changes requested", body: `${task.title}: ${rejectNote.trim()}` }));
     setRejectMode(false); setRejectNote("");
   };
 
@@ -252,20 +245,20 @@ export default function TaskDetailModal({ taskId, onClose }) {
               </Select>
             </Field>
             <Field label="Priority">
-              <Select disabled={isDeveloper} value={edited.priority !== undefined ? edited.priority : task.priority} onChange={(e) => {
+              <Select disabled={isDevRestricted} value={edited.priority !== undefined ? edited.priority : task.priority} onChange={(e) => {
                 setEdited(prev => ({ ...prev, priority: e.target.value }));
               }}>
                 {PRIORITIES.map(p => <option key={p}>{p}</option>)}
               </Select>
             </Field>
             <Field label="Story points">
-              <Input type="number" disabled={isDeveloper} value={edited.points !== undefined ? (edited.points ?? "") : (task.points ?? "")} min={0} onChange={(e) => {
+              <Input type="number" disabled={isDevRestricted} value={edited.points !== undefined ? (edited.points ?? "") : (task.points ?? "")} min={0} onChange={(e) => {
                 const val = e.target.value === "" ? null : Number(e.target.value);
                 setEdited(prev => ({ ...prev, points: val }));
               }} />
             </Field>
             <Field label="Due date">
-              <Input type="date" disabled={isDeveloper}
+              <Input type="date" disabled={isDevRestricted}
                 value={edited.dueDate !== undefined 
                   ? (edited.dueDate ? new Date(edited.dueDate).toISOString().slice(0,10) : "") 
                   : (task.dueDate ? new Date(task.dueDate).toISOString().slice(0,10) : "")}
@@ -319,7 +312,6 @@ export default function TaskDetailModal({ taskId, onClose }) {
               <Button variant="primary" className="w-full" onClick={() => {
                 dispatch(submitForReview({ id: task.id, by: user.id }));
                 dispatch(changeTaskStatusAsync({ taskId: task.id, status: "In Review" }));
-                if (reporter) dispatch(pushNotif({ userId: reporter.id, type: "review_request", title: "Review request", body: `${task.title} is ready for review` }));
               }}>
                 Move to In Review
               </Button>

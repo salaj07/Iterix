@@ -5,18 +5,23 @@ import { MessageSquare, CheckSquare, Calendar, Plus, Archive } from "lucide-reac
 import { toast } from "sonner";
 import { moveTask, archiveTask, changeTaskStatusAsync, updateTaskDetailsAsync } from "@/store/slices/tasksSlice";
 import { openTask } from "@/store/slices/uiSlice";
-import { push as pushNotif } from "@/store/slices/notificationsSlice";
-import { KANBAN_STATUSES as STATUSES } from "@/store/seed";
+import { KANBAN_STATUSES } from "@/store/seed";
 import Avatar from "@/components/common/Avatar";
 import { Badge } from "@/components/common/Primitives";
 import { priorityTone, typeTone, formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-export default function KanbanBoard({ projectId = null, sprintId = undefined, onCreateTask }) {
+export default function KanbanBoard({ projectId = null, sprintId = undefined, search = "", assigneeId = "", priority = "", type = "", onCreateTask }) {
   const dispatch = useDispatch();
   const user = useSelector(s => s.auth.user);
   const allTasks = useSelector(s => s.tasks.tasks);
   const members = useSelector(s => s.org.members);
+  const projects = useSelector(s => s.projects.projects || []);
+  const projectMembers = useSelector(s => s.projects.projectMembers || []);
+
+  const STATUSES = sprintId === "backlog" || sprintId === null
+    ? ["Backlog", "Todo", "In Progress", "In Review", "Done"]
+    : KANBAN_STATUSES;
 
   const visible = (projectId ? allTasks.filter(t => t.projectId === projectId) : allTasks)
     .filter(t => !t.archived)
@@ -24,6 +29,19 @@ export default function KanbanBoard({ projectId = null, sprintId = undefined, on
       if (sprintId === undefined) return true;
       if (sprintId === "backlog" || sprintId === null) return !t.sprintId;
       return t.sprintId === sprintId;
+    })
+    .filter(t => {
+      if (priority && t.priority !== priority) return false;
+      if (type && t.type !== type) return false;
+      if (assigneeId) {
+        if (assigneeId === "unassigned") {
+          if (t.assigneeId) return false;
+        } else {
+          if (t.assigneeId !== assigneeId) return false;
+        }
+      }
+      if (search && !t.title.toLowerCase().includes(search.toLowerCase())) return false;
+      return true;
     });
   const tasks = visible;
   const PRIORITY_ORDER = { Urgent: 4, High: 3, Medium: 2, Low: 1 };
@@ -46,31 +64,27 @@ export default function KanbanBoard({ projectId = null, sprintId = undefined, on
     if (destination.droppableId === source.droppableId && destination.index === source.index) return;
     const newStatus = destination.droppableId;
     const oldStatus = source.droppableId;
+
+    if (newStatus === "Done") {
+      const project = projects.find(p => p && (p.id === projectId || p._id === projectId));
+      const myProjectMember = projectMembers.find(pm => pm && (pm.id === user?.id || pm.userId === user?.id || (pm.user && pm.user._id === user?.id)));
+      const isProjectLead = project && (
+        project.memberRole === "TEAM_LEAD" ||
+        myProjectMember?.role === "TEAM_LEAD" ||
+        String(project.teamLeadId) === String(user?.id) ||
+        String(project.createdBy) === String(user?.id)
+      );
+      const myWorkspaceMember = (members || []).find(m => m && m.id === user?.id);
+      const isWorkspaceAdmin = myWorkspaceMember?.role === "ADMIN";
+
+      if (!isProjectLead && !isWorkspaceAdmin) {
+        toast.error("Only Project Leads or Workspace Admins can approve tasks and move them to Done");
+        return;
+      }
+    }
+
     dispatch(moveTask({ id: draggableId, status: newStatus, by: user?.id }));
     dispatch(changeTaskStatusAsync({ taskId: draggableId, status: newStatus }));
-
-    if (newStatus === "In Review" && oldStatus !== "In Review") {
-      const task = tasks.find(t => t.id === draggableId);
-      if (task) {
-        dispatch(pushNotif({
-          userId: task.reporterId,
-          type: "review_request",
-          title: "Review request",
-          body: `${task.title} is ready for review`,
-        }));
-      }
-    }
-    if (newStatus === "Done" && oldStatus !== "Done") {
-      const task = tasks.find(t => t.id === draggableId);
-      if (task && task.assigneeId) {
-        dispatch(pushNotif({
-          userId: task.assigneeId,
-          type: "task_done",
-          title: "Task completed",
-          body: `${task.title} moved to Done`,
-        }));
-      }
-    }
   };
 
   const onArchive = (e, taskId, title) => {
