@@ -26,7 +26,6 @@ const globalItems = [
   { to: "/app/projects", label: "Projects", icon: FolderKanban },
   { to: "/app/workspaces", label: "Workspaces", icon: Boxes },
   { to: "/app/notifications", label: "Notifications", icon: Bell },
-  { to: "/app/inbox", label: "Email templates", icon: Mail },
   { to: "/app/settings", label: "Settings", icon: Settings },
 ];
 

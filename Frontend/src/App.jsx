@@ -19,7 +19,6 @@ import KanbanPage from "@/pages/app/KanbanPage";
 import Reports from "@/pages/app/Reports";
 import Notifications from "@/pages/app/Notifications";
 import Settings from "@/pages/app/Settings";
-import Inbox from "@/pages/app/Inbox";
 import Backlog from "@/pages/app/Backlog";
 import NotFound from "@/pages/NotFound";
 
@@ -91,7 +90,6 @@ export default function App() {
             <Route path="backlog" element={<Backlog />} />
             <Route path="reports" element={<Reports />} />
             <Route path="notifications" element={<Notifications />} />
-            <Route path="inbox" element={<Inbox />} />
             <Route path="settings" element={<Settings />} />
           </Route>
 
