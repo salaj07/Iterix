@@ -13,6 +13,7 @@ const sprintRoutes = require("./routes/sprint.route.js");
 const taskRoutes = require("./routes/task.route.js");
 const commentRoutes = require("./routes/comment.route.js");
 const notificationRoutes = require("./routes/notification.route.js");
+const joinRequestRoutes = require("./routes/joinRequest.route");
 
 const app = express();
 
@@ -60,6 +61,7 @@ app.use("/api/sprints", sprintRoutes);
 app.use("/api/tasks", taskRoutes);
 app.use("/api/comments", commentRoutes);
 app.use("/api/notifications", notificationRoutes);
+app.use("/api", joinRequestRoutes);
 
 /* ===========================
    Health Check

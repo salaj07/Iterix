@@ -155,6 +155,18 @@ const clearWorkspaceData = async (req, res, next) => {
   }
 };
 
+const listAllWorkspaces = async (req, res, next) => {
+  try {
+    const result = await workspaceService.listAllWorkspaces();
+    return res.status(200).json({
+      success: true,
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   createWorkspace,
   getUserWorkspaces,
@@ -165,4 +177,5 @@ module.exports = {
   updateMemberRole,
   removeMember,
   clearWorkspaceData,
+  listAllWorkspaces,
 };
