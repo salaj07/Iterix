@@ -121,7 +121,9 @@ export default function ProjectDetail() {
           {canEditProject && (
             <Button variant="outline" onClick={() => setEditOpen(true)}>Edit project</Button>
           )}
-          <Button variant="outline" onClick={() => { setCreateStatus("Backlog"); setCreateOpen(true); }}><Plus size={15}/> New task</Button>
+          {project?.memberRole !== "VIEWER" && (
+            <Button variant="outline" onClick={() => { setCreateStatus("Backlog"); setCreateOpen(true); }}><Plus size={15}/> New task</Button>
+          )}
         </div>
       </div>
 

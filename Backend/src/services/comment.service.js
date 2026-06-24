@@ -1,6 +1,8 @@
 const Comment = require("../models/comment.model");
 const Task = require("../models/task.model");
 const ProjectMember = require("../models/projectMember.model");
+const WorkspaceMember = require("../models/workspaceMember.model");
+const Project = require("../models/project.model");
 
 /**
  * Add Comment
@@ -59,14 +61,29 @@ const getComments = async (taskId, currentUser) => {
     throw new Error("Task not found");
   }
 
-  const member = await ProjectMember.findOne({
-    project: task.project,
+  const project = await Project.findById(task.project);
+  if (!project) {
+    throw new Error("Project not found");
+  }
+
+  // Check if workspace ADMIN or TEAM_LEAD
+  const isWorkspaceLeadOrAdmin = await WorkspaceMember.findOne({
+    workspace: project.workspace,
     user: currentUser._id,
+    role: { $in: ["ADMIN", "TEAM_LEAD"] },
     isActive: true,
   });
 
-  if (!member) {
-    throw new Error("Access denied");
+  if (!isWorkspaceLeadOrAdmin) {
+    const member = await ProjectMember.findOne({
+      project: task.project,
+      user: currentUser._id,
+      isActive: true,
+    });
+
+    if (!member) {
+      throw new Error("Access denied");
+    }
   }
 
   return await Comment.find({ task: taskId })

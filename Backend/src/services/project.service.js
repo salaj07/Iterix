@@ -95,13 +95,13 @@ const createProject = async (data, currentUser) => {
  * Get all projects for logged-in user
  */
 const getUserProjects = async (currentUser) => {
-  // Find workspaces where user is ADMIN
-  const adminMemberships = await WorkspaceMember.find({
+  // Find workspaces where user is ADMIN or TEAM_LEAD
+  const leadOrAdminMemberships = await WorkspaceMember.find({
     user: currentUser._id,
-    role: "ADMIN",
+    role: { $in: ["ADMIN", "TEAM_LEAD"] },
     isActive: true,
   });
-  const adminWorkspaceIds = adminMemberships.map(m => m.workspace);
+  const leadOrAdminWorkspaceIds = leadOrAdminMemberships.map(m => m.workspace);
 
   // Get projects they are member of
   const memberships = await ProjectMember.find({
@@ -111,10 +111,10 @@ const getUserProjects = async (currentUser) => {
 
   let projects = memberships.map(m => m.project).filter(Boolean);
 
-  // If admin in any workspaces, get all projects in those workspaces
-  if (adminWorkspaceIds.length > 0) {
+  // If admin or lead in any workspaces, get all projects in those workspaces
+  if (leadOrAdminWorkspaceIds.length > 0) {
     const adminProjects = await Project.find({
-      workspace: { $in: adminWorkspaceIds },
+      workspace: { $in: leadOrAdminWorkspaceIds },
     });
 
     // Combine and remove duplicates
@@ -126,15 +126,17 @@ const getUserProjects = async (currentUser) => {
     });
   }
 
-  // Construct dummy memberships for workspace admin projects so the frontend gets the expected structure
+  // Construct dummy memberships for workspace admin/lead projects so the frontend gets the expected structure
   const projectMemberships = projects.map(p => {
     const originalMembership = memberships.find(m => m.project && m.project._id.toString() === p._id.toString());
     if (originalMembership) {
       return originalMembership;
     }
+    const wsMember = leadOrAdminMemberships.find(m => m.workspace.toString() === p.workspace.toString());
+    const dummyRole = (wsMember && wsMember.role === "ADMIN") ? "TEAM_LEAD" : "VIEWER";
     return {
       project: p,
-      role: "TEAM_LEAD",
+      role: dummyRole,
       user: currentUser._id,
       isActive: true,
     };
@@ -152,15 +154,15 @@ const getProjectById = async (projectId, currentUser) => {
     throw new Error("Project not found");
   }
 
-  // Check if workspace ADMIN
-  const isAdmin = await WorkspaceMember.findOne({
+  // Check if workspace ADMIN or TEAM_LEAD
+  const isWorkspaceLeadOrAdmin = await WorkspaceMember.findOne({
     workspace: project.workspace,
     user: currentUser._id,
-    role: "ADMIN",
+    role: { $in: ["ADMIN", "TEAM_LEAD"] },
     isActive: true,
   });
 
-  if (!isAdmin) {
+  if (!isWorkspaceLeadOrAdmin) {
     // Check if project member
     const membership = await ProjectMember.findOne({
       project: projectId,
@@ -212,15 +214,15 @@ const getProjectMembers = async (projectId, currentUser) => {
     throw new Error("Project not found");
   }
 
-  // Check if workspace ADMIN
-  const isAdmin = await WorkspaceMember.findOne({
+  // Check if workspace ADMIN or TEAM_LEAD
+  const isWorkspaceLeadOrAdmin = await WorkspaceMember.findOne({
     workspace: project.workspace,
     user: currentUser._id,
-    role: "ADMIN",
+    role: { $in: ["ADMIN", "TEAM_LEAD"] },
     isActive: true,
   });
 
-  if (!isAdmin) {
+  if (!isWorkspaceLeadOrAdmin) {
     const access = await ProjectMember.findOne({
       project: projectId,
       user: currentUser._id,
@@ -255,15 +257,15 @@ const getProjectDashboard = async (projectId, currentUser) => {
     throw new Error("Project not found");
   }
 
-  // Check if workspace ADMIN
-  const isAdmin = await WorkspaceMember.findOne({
+  // Check if workspace ADMIN or TEAM_LEAD
+  const isWorkspaceLeadOrAdmin = await WorkspaceMember.findOne({
     workspace: project.workspace,
     user: currentUser._id,
-    role: "ADMIN",
+    role: { $in: ["ADMIN", "TEAM_LEAD"] },
     isActive: true,
   });
 
-  if (!isAdmin) {
+  if (!isWorkspaceLeadOrAdmin) {
     const membership = await ProjectMember.findOne({
       project: projectId,
       user: currentUser._id,
