@@ -4,8 +4,10 @@ import Modal from "@/components/common/Modal";
 import Button from "@/components/common/Button";
 import { Input, Label, Select, Textarea } from "@/components/common/Primitives";
 import { createTaskAsync } from "@/store/slices/tasksSlice";
-import { fetchProjectMembers } from "@/store/slices/projectsSlice";
+import * as projectApi from "@/services/project.api";
 import { PRIORITIES, TASK_TYPES, STATUSES } from "@/store/seed";
+import { openTask } from "@/store/slices/uiSlice";
+import { toast } from "sonner";
 
 export default function CreateTaskModal({ open, onClose, projectId, defaultStatus = "Backlog", defaultSprintId = undefined }) {
   const dispatch = useDispatch();
@@ -14,8 +16,6 @@ export default function CreateTaskModal({ open, onClose, projectId, defaultStatu
   const sprints = useSelector(s => s.sprints.sprints);
   const members = useSelector(s => s.org.members);
   const me = members.find(m => m.id === user?.id);
-  const currentProjectId = useSelector(s => s.projects.currentProjectId);
-  const storeProjectMembers = useSelector(s => s.projects.projectMembers) || [];
   const [type, setType] = useState("Task");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -26,32 +26,16 @@ export default function CreateTaskModal({ open, onClose, projectId, defaultStatu
   const [proj, setProj] = useState(projectId || projects[0]?.id || "");
   const [sprintId, setSprintId] = useState("");
   const [dueDate, setDueDate] = useState("");
+  const [projectMembers, setProjectMembers] = useState([]);
 
   const projectSprints = sprints.filter(s => s && s.projectId === proj);
   const selectedProject = projects.find(p => p.id === proj);
   const isDeveloper = selectedProject && selectedProject.memberRole === "DEVELOPER";
   const isMeAdmin = me?.role === "ADMIN";
   const isMeLead = selectedProject?.teamLeadId === user?.id || selectedProject?.createdBy === user?.id || (
-    (selectedProject?.id === currentProjectId || selectedProject?._id === currentProjectId) &&
-    storeProjectMembers.some(x => (x.id || x.userId || x.user?._id || x.user) === user?.id && x.role === "TEAM_LEAD")
+    projectMembers.some(x => x.id === user?.id && x.role === "TEAM_LEAD")
   );
   const isDevRestricted = isDeveloper && !isMeAdmin && !isMeLead;
-  const projectMembers = members.filter(m => {
-    const isMember = selectedProject?.memberIds?.includes(m.id) || m.id === selectedProject?.createdBy;
-    if (!isMember) return false;
-    if (m.role !== "ADMIN") return true;
-
-    if (selectedProject?.teamLeadId === m.id || selectedProject?.createdBy === m.id) {
-      return true;
-    }
-    if (selectedProject?.id === currentProjectId || selectedProject?._id === currentProjectId) {
-      const pm = storeProjectMembers.find(x => (x.id || x.userId || x.user?._id || x.user) === m.id);
-      if (pm && pm.role === "TEAM_LEAD") {
-        return true;
-      }
-    }
-    return false;
-  });
 
   useEffect(() => {
     if (open) {
@@ -85,20 +69,59 @@ export default function CreateTaskModal({ open, onClose, projectId, defaultStatu
 
   // Fetch project members when modal is opened or selected project changes
   useEffect(() => {
+    let active = true;
     if (open && proj) {
-      dispatch(fetchProjectMembers(proj));
+      projectApi.getProjectMembers(proj)
+        .then(res => {
+          if (active) {
+            const fetchedMembers = res.data?.data || res.data || [];
+            const mapped = fetchedMembers.map(pm => {
+              const memberUser = pm.user || pm;
+              const userId = pm.id || pm.userId || memberUser._id || memberUser.id || pm.user;
+              const name = pm.name || memberUser.name || "Unknown";
+              const email = pm.email || memberUser.email || "";
+              return { id: String(userId), name, email, role: pm.role };
+            }).filter(m => m.id);
+            setProjectMembers(mapped);
+          }
+        })
+        .catch(err => {
+          console.error("Failed to load project members", err);
+          if (active) {
+            setProjectMembers([]);
+          }
+        });
+    } else {
+      setProjectMembers([]);
     }
-  }, [open, proj, dispatch]);
+    return () => {
+      active = false;
+    };
+  }, [open, proj]);
 
-  const submit = () => {
+  const submit = async () => {
     if (!title.trim() || !proj) return;
-    dispatch(createTaskAsync({
+    const result = await dispatch(createTaskAsync({
       title: title.trim(), description, type, priority,
       points: Number(points), status,
       projectId: proj, sprintId: sprintId || null,
       assigneeId: assigneeId || null, reporterId: user.id,
       dueDate: dueDate ? new Date(dueDate).toISOString() : null,
     }));
+
+    if (createTaskAsync.fulfilled.match(result)) {
+      const createdTask = result.payload?.data;
+      const taskCode = createdTask?.taskCode || "Task";
+      toast.success(`${taskCode} created successfully`, {
+        action: {
+          label: "Open Details",
+          onClick: () => dispatch(openTask(createdTask._id || createdTask.id))
+        }
+      });
+    } else {
+      toast.error(result.payload?.message || "Failed to create task");
+    }
+
     setTitle(""); setDescription(""); setAssigneeId("");
     onClose();
   };
