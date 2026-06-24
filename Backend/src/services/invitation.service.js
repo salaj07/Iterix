@@ -80,6 +80,7 @@ const inviteMember = async (workspaceId, adminUser, email, role = "DEVELOPER", p
         title: "Workspace Invitation",
         message: `You have been invited to join the workspace "${workspace.name}" by ${adminUser.name}.`,
         type: "INVITATION",
+        workspaceId: workspace._id,
       });
     } catch (err) {
       console.error("Failed to create in-app invitation notification:", err);
@@ -177,6 +178,7 @@ const acceptInvitation = async (invitationId, user) => {
             title: "Project Assigned",
             message: `You have been assigned to the project "${proj.name}".`,
             type: "PROJECT_ASSIGNED",
+            projectId: invitation.project,
           });
         }
       } catch (err) {
@@ -212,6 +214,7 @@ const acceptInvitation = async (invitationId, user) => {
         title: "Member joined workspace",
         message: `${user.name} has joined the workspace "${wsName}".`,
         type: "MEMBER_JOINED",
+        workspaceId: invitation.workspace,
       });
     }
   } catch (err) {

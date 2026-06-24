@@ -64,6 +64,7 @@ const createJoinRequest = async (user, workspaceId) => {
           title: "Join Request Received",
           message: `${user.name} (${user.email}) requested to join "${workspace.name}".`,
           type: "INVITATION", // use existing notification types
+          workspaceId: workspace._id,
         });
       }
     }
@@ -152,6 +153,7 @@ const resolveJoinRequest = async (requestId, adminUser, action) => {
         title: "Join Request Approved",
         message: `Your request to join workspace "${workspaceName}" has been approved.`,
         type: "INVITATION",
+        workspaceId: joinRequest.workspace,
       });
     } catch (err) {
       console.error("Failed to notify user on request approval:", err);
@@ -169,6 +171,7 @@ const resolveJoinRequest = async (requestId, adminUser, action) => {
         title: "Join Request Declined",
         message: `Your request to join workspace "${workspaceName}" was declined.`,
         type: "INVITATION",
+        workspaceId: joinRequest.workspace,
       });
     } catch (err) {
       console.error("Failed to notify user on request decline:", err);

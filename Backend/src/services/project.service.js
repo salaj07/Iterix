@@ -372,6 +372,7 @@ const addProjectMember = async (projectId, userId, role, currentUser) => {
         title: "Project Assigned",
         message: `You have been assigned to the project "${project.name}".`,
         type: "PROJECT_ASSIGNED",
+        projectId: project._id,
       });
     } catch (err) {
       console.error("Failed to create project assignment notification:", err);

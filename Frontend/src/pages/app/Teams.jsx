@@ -21,7 +21,7 @@ import {
 import { fetchProjectMembers, addProjectMemberAsync, removeProjectMemberAsync, updateProjectMemberRoleAsync } from "@/store/slices/projectsSlice";
 import { ROLES } from "@/store/seed";
 
-export default function Teams() {
+export default function Teams({ mode }) {
   const dispatch = useDispatch();
   const user = useSelector(s => s.auth.user);
   
@@ -152,7 +152,7 @@ export default function Teams() {
   const assignableWorkspaceMembers = workspaceMembers.filter(m => !projectMemberUserIds.includes(m.id));
 
   // If no project is selected, force viewing Workspace Members
-  const activeViewMode = currentProjectId ? viewMode : "workspace";
+  const activeViewMode = mode ? mode : (currentProjectId ? viewMode : "workspace");
 
   return (
     <div className="space-y-6">
@@ -176,7 +176,7 @@ export default function Teams() {
 
         <div className="flex gap-2">
           {/* Toggle between project and workspace view */}
-          {currentProjectId && (
+          {!mode && currentProjectId && (
             <Button variant="outline" onClick={() => setViewMode(v => v === "project" ? "workspace" : "project")}>
               {activeViewMode === "project" ? "Manage Workspace Members" : "Back to Project Team"}
             </Button>

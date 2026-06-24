@@ -8,12 +8,18 @@ const createNotification = async ({
   title,
   message,
   type,
+  projectId,
+  taskId,
+  workspaceId,
 }) => {
   const notif = await Notification.create({
     user,
     title,
     message,
     type,
+    projectId,
+    taskId,
+    workspaceId,
   });
 
   // Emit real-time notification

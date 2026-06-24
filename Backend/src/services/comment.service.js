@@ -38,6 +38,8 @@ const addComment = async ({ taskId, content }, currentUser) => {
         title: "New Comment",
         message: `${currentUser.name || "Someone"} commented on your task: "${task.title}".`,
         type: "COMMENT",
+        projectId: task.project,
+        taskId: task._id,
       });
     } catch (err) {
       console.error("Failed to create comment notification:", err);

@@ -10,12 +10,28 @@ import { formatRelative, roleLabel } from "@/lib/format";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
+import { useNotificationRedirect } from "@/lib/notificationRedirect";
+
+const actionLabelFor = (type) => {
+  const norm = type?.toUpperCase();
+  if (norm?.startsWith("TASK_") || norm === "COMMENT" || norm === "SPRINT" || norm === "REVIEW_REQUEST") {
+    return "Open Task";
+  }
+  if (norm === "PROJECT_ASSIGNED") {
+    return "View Project";
+  }
+  if (norm === "INVITATION" || norm === "MEMBER_JOINED") {
+    return "View Workspace";
+  }
+  return "View Details";
+};
 
 const iconFor = (type) => ({
   task_assigned: UserPlus,
   task_approved: Check,
   task_rejected: X,
   sprint_started: Play,
+  sprint: Play,
   comment: MessageSquare,
   review_request: Bell,
   task_done: CheckCheck,
@@ -26,6 +42,7 @@ const iconFor = (type) => ({
 
 export default function Notifications() {
   const dispatch = useDispatch();
+  const handleRedirect = useNotificationRedirect();
   const { items, loading } = useSelector((s) => s.notifications) || { items: [], loading: false };
   const myInvitations = useSelector((s) => s.org.myInvitations) || [];
   const [activeTab, setActiveTab] = useState("unread");
@@ -162,23 +179,37 @@ export default function Notifications() {
               const id = n._id || n.id;
               const Icon = iconFor(n.type?.toLowerCase());
               return (
-                <li key={id} className="flex items-center justify-between gap-3 px-5 py-4 hover:bg-foreground/[0.02]">
+                <li
+                  key={id}
+                  onClick={() => handleRedirect(n)}
+                  className="flex items-center justify-between gap-3 px-5 py-4 hover:bg-foreground/[0.02] cursor-pointer group"
+                >
                   <div className="flex-1 flex gap-3 items-start text-left min-w-0">
                     <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${n.read ? "bg-foreground/5 text-muted-foreground" : "bg-[color:var(--primary)]/15 text-[color:var(--primary)]"}`}>
                       <Icon size={15} />
                     </div>
                     <div className="flex-1 min-w-0 pr-4">
-                      <div className="text-sm font-medium text-foreground">{n.title || n.message}</div>
-                      <div className="text-xs text-muted-foreground mt-0.5">{n.body || n.description}</div>
-                      <div className="text-[10px] text-muted-foreground mt-1.5">
-                        {formatRelative(n.at || n.createdAt)}
+                      <div className="text-sm font-medium text-foreground">{n.title}</div>
+                      <div className="text-xs text-muted-foreground mt-0.5">{n.message || n.body || n.description}</div>
+                      <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                        <span className="text-[10px] text-muted-foreground">
+                          {formatRelative(n.at || n.createdAt)}
+                        </span>
+                        <span className="w-1 h-1 rounded-full bg-muted-foreground/30" />
+                        <span className="text-[10px] font-semibold text-[color:var(--primary)] group-hover:underline flex items-center gap-0.5">
+                          {actionLabelFor(n.type)}
+                          <span>→</span>
+                        </span>
                       </div>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     {!n.read && (
                       <button
-                        onClick={() => handleMarkRead(id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleMarkRead(id);
+                        }}
                         className="p-1.5 rounded-lg hover:bg-foreground/5 text-muted-foreground hover:text-[color:var(--primary)]"
                         title="Mark as read"
                       >
@@ -186,7 +217,10 @@ export default function Notifications() {
                       </button>
                     )}
                     <button
-                      onClick={() => handleDelete(id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDelete(id);
+                      }}
                       className="p-1.5 rounded-lg hover:bg-foreground/5 text-muted-foreground hover:text-red-500"
                       title="Dismiss"
                     >

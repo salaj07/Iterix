@@ -320,7 +320,7 @@ export default function AppShell() {
                     <button
                       key={m.id}
                       onClick={() => {
-                        navigate("/app/teams");
+                        navigate("/app/workspace-members");
                         dispatch(closeSearch());
                         setSearchQuery("");
                       }}

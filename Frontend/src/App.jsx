@@ -84,7 +84,8 @@ export default function App() {
             <Route path="projects" element={<Projects />} />
             <Route path="projects/:id" element={<ProjectDetail />} />
             <Route path="projects/:id/board" element={<KanbanPage />} />
-            <Route path="teams" element={<Teams />} />
+            <Route path="teams" element={<Teams mode="project" />} />
+            <Route path="workspace-members" element={<Teams mode="workspace" />} />
             <Route path="sprints" element={<Sprints />} />
             <Route path="kanban" element={<KanbanPage />} />
             <Route path="backlog" element={<Navigate to="/app/unscheduled" replace />} />

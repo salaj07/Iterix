@@ -287,6 +287,7 @@ const notifyProjectMembers = async (projectId, title, message, excludeUserId) =>
           title,
           message,
           type: "SPRINT",
+          projectId,
         });
       }
     }

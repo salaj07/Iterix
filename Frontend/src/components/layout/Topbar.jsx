@@ -9,6 +9,7 @@ import Avatar from "@/components/common/Avatar";
 import { formatRelative } from "@/lib/format";
 import { markReadAsync } from "@/store/slices/notificationsSlice";
 import { openSearch } from "@/store/slices/uiSlice";
+import { useNotificationRedirect } from "@/lib/notificationRedirect";
 
 function useClickOutside(cb) {
   const ref = useRef(null);
@@ -30,6 +31,7 @@ export default function Topbar({ onOpenMobileSidebar }) {
 
   const [notifOpen, setNotifOpen] = useState(false);
   const [profOpen, setProfOpen] = useState(false);
+  const handleRedirect = useNotificationRedirect();
 
   const notifRef = useClickOutside(() => setNotifOpen(false));
   const profRef = useClickOutside(() => setProfOpen(false));
@@ -97,7 +99,7 @@ export default function Topbar({ onOpenMobileSidebar }) {
                     key={n.id}
                     onClick={() => {
                       setNotifOpen(false);
-                      navigate("/app/notifications");
+                      handleRedirect(n);
                     }}
                     className="group/item relative w-full text-left px-3 py-2.5 rounded-lg hover:bg-foreground/5 flex gap-3 items-start cursor-pointer"
                   >
