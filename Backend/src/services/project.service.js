@@ -337,6 +337,13 @@ const addProjectMember = async (projectId, userId, role, currentUser) => {
     throw new Error("User must be an active member of this workspace to be added to a project");
   }
 
+  // Ensure user is TEAM_LEAD or ADMIN in workspace to be TEAM_LEAD in project
+  if (role === "TEAM_LEAD") {
+    if (!["ADMIN", "TEAM_LEAD"].includes(isWorkspaceMember.role)) {
+      throw new Error("A user must be a Project Lead or Workspace Admin in the workspace to be assigned as Project Lead of a project");
+    }
+  }
+
   // Check if they are already in the project (even soft-deleted)
   const existing = await ProjectMember.findOne({ project: projectId, user: userId });
   let isNewAssignment = false;
@@ -409,6 +416,19 @@ const updateProjectMemberRole = async (projectId, userId, role, currentUser) => 
   const member = await ProjectMember.findOne({ project: projectId, user: userId, isActive: true });
   if (!member) {
     throw new Error("Project member not found");
+  }
+
+  // Ensure user is TEAM_LEAD or ADMIN in workspace to be TEAM_LEAD in project
+  if (role === "TEAM_LEAD") {
+    const project = await Project.findById(projectId);
+    const isWorkspaceMember = await WorkspaceMember.findOne({
+      workspace: project.workspace,
+      user: userId,
+      isActive: true,
+    });
+    if (!isWorkspaceMember || !["ADMIN", "TEAM_LEAD"].includes(isWorkspaceMember.role)) {
+      throw new Error("A user must be a Project Lead or Workspace Admin in the workspace to be assigned as Project Lead of a project");
+    }
   }
 
   // Ensure we don't leave the project with zero active TEAM_LEADs if they are demoted

@@ -142,6 +142,8 @@ const acceptInvitation = async (invitationId, user) => {
   if (invitation.project) {
     const ProjectMember = require("../models/projectMember.model");
     
+    const projectRole = (invitation.role === "ADMIN" || invitation.role === "TEAM_LEAD") ? "TEAM_LEAD" : "DEVELOPER";
+    
     // Check if they are already in the project (even soft-deleted)
     const existingProjMember = await ProjectMember.findOne({
       project: invitation.project,
@@ -153,13 +155,14 @@ const acceptInvitation = async (invitationId, user) => {
         isNewProjAssignment = true;
       }
       existingProjMember.isActive = true;
+      existingProjMember.role = projectRole;
       await existingProjMember.save();
     } else {
       isNewProjAssignment = true;
       await ProjectMember.create({
         project: invitation.project,
         user: user._id,
-        role: "DEVELOPER",
+        role: projectRole,
       });
     }
 
