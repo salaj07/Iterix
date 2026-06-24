@@ -172,6 +172,13 @@ const updateMemberRole = async (workspaceId, adminUser, memberId, newRole) => {
     throw new Error("Workspace member not found");
   }
 
+  try {
+    const { emitWorkspaceEvent } = require("../socket");
+    emitWorkspaceEvent(workspaceId, "workspace_member_role_updated", { workspaceId, memberId, role: newRole });
+  } catch (err) {
+    console.error("Failed to emit workspace_member_role_updated socket event:", err.message);
+  }
+
   return membership;
 };
 
@@ -235,6 +242,13 @@ const removeMember = async (workspaceId, adminUser, memberId) => {
   if (!membership) {
     throw new Error("Workspace member not found");
   }
+
+  try {
+    const { emitWorkspaceEvent } = require("../socket");
+    emitWorkspaceEvent(workspaceId, "workspace_member_removed", { workspaceId, memberId });
+  } catch (err) {
+    console.error("Failed to emit workspace_member_removed socket event:", err.message);
+  }
 };
 
 const clearWorkspaceData = async (currentUser, workspaceId) => {
@@ -272,6 +286,13 @@ const clearWorkspaceData = async (currentUser, workspaceId) => {
   await ProjectMember.deleteMany({ project: { $in: projectIds } });
   await Activity.deleteMany({ project: { $in: projectIds } });
   await Project.deleteMany({ workspace: workspaceId });
+
+  try {
+    const { emitWorkspaceEvent } = require("../socket");
+    emitWorkspaceEvent(workspaceId, "workspace_clear_data", { workspaceId });
+  } catch (err) {
+    console.error("Failed to emit workspace_clear_data socket event:", err.message);
+  }
 };
 
 const listAllWorkspaces = async () => {

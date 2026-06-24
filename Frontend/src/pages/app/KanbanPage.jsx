@@ -194,7 +194,7 @@ export default function KanbanPage() {
           <div className="flex items-center gap-2.5">
             <span className="w-2 h-2 rounded-full bg-[color:var(--primary)] animate-pulse" />
             <span>
-              Backlog status tasks are not shown on the Kanban board.
+              Unscheduled tasks with 'Backlog' status are not shown on the Kanban board.
             </span>
           </div>
           <Button
