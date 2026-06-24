@@ -72,6 +72,13 @@ const createJoinRequest = async (user, workspaceId) => {
     console.error("Failed to notify admins for join request:", err);
   }
 
+  try {
+    const { emitWorkspaceEvent } = require("../socket");
+    emitWorkspaceEvent(workspaceId, "join_request_created", { workspaceId });
+  } catch (err) {
+    console.error("Failed to emit join_request_created socket event:", err.message);
+  }
+
   return joinRequest;
 };
 
@@ -159,6 +166,20 @@ const resolveJoinRequest = async (requestId, adminUser, action) => {
       console.error("Failed to notify user on request approval:", err);
     }
 
+    try {
+      const { emitWorkspaceEvent } = require("../socket");
+      emitWorkspaceEvent(joinRequest.workspace, "join_request_resolved", { workspaceId: joinRequest.workspace, requestId });
+      emitWorkspaceEvent(joinRequest.workspace, "workspace_member_joined", {
+        workspaceId: joinRequest.workspace,
+        user: {
+          _id: joinRequest.user
+        },
+        role: "DEVELOPER"
+      });
+    } catch (err) {
+      console.error("Failed to emit resolveJoinRequest ACCEPT socket event:", err.message);
+    }
+
     return { message: "Join request accepted successfully" };
   } else if (action === "REJECT") {
     joinRequest.status = "REJECTED";
@@ -175,6 +196,13 @@ const resolveJoinRequest = async (requestId, adminUser, action) => {
       });
     } catch (err) {
       console.error("Failed to notify user on request decline:", err);
+    }
+
+    try {
+      const { emitWorkspaceEvent } = require("../socket");
+      emitWorkspaceEvent(joinRequest.workspace, "join_request_resolved", { workspaceId: joinRequest.workspace, requestId });
+    } catch (err) {
+      console.error("Failed to emit resolveJoinRequest REJECT socket event:", err.message);
     }
 
     return { message: "Join request rejected successfully" };

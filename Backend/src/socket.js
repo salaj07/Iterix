@@ -70,6 +70,20 @@ const initIO = (server) => {
       }
     });
 
+    socket.on("join_workspace", (workspaceId) => {
+      if (workspaceId) {
+        socket.join(`workspace:${workspaceId}`);
+        console.log(`🏢 User ${socket.user.name} joined workspace room: workspace:${workspaceId}`);
+      }
+    });
+
+    socket.on("leave_workspace", (workspaceId) => {
+      if (workspaceId) {
+        socket.leave(`workspace:${workspaceId}`);
+        console.log(`🏢 User ${socket.user.name} left workspace room: workspace:${workspaceId}`);
+      }
+    });
+
     socket.on("disconnect", () => {
       console.log(`🔌 Client disconnected: ${socket.user.name} (${socket.id})`);
     });
@@ -88,8 +102,15 @@ const emitProjectEvent = (projectId, eventName, data) => {
   }
 };
 
+const emitWorkspaceEvent = (workspaceId, eventName, data) => {
+  if (io && workspaceId) {
+    io.to(`workspace:${workspaceId.toString()}`).emit(eventName, data);
+  }
+};
+
 module.exports = {
   initIO,
   getIO,
   emitProjectEvent,
+  emitWorkspaceEvent,
 };

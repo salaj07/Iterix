@@ -81,6 +81,13 @@ const createProject = async (data, currentUser) => {
     role: "TEAM_LEAD",
   });
 
+  try {
+    const { emitWorkspaceEvent } = require("../socket");
+    emitWorkspaceEvent(workspaceId, "project_created", project);
+  } catch (err) {
+    console.error("Failed to emit project_created socket event:", err.message);
+  }
+
   return project;
 };
 
@@ -379,6 +386,13 @@ const addProjectMember = async (projectId, userId, role, currentUser) => {
     }
   }
 
+  try {
+    const { emitProjectEvent } = require("../socket");
+    emitProjectEvent(projectId, "project_member_added", { projectId, userId, role });
+  } catch (err) {
+    console.error("Failed to emit project_member_added socket event:", err.message);
+  }
+
   return member;
 };
 
@@ -404,6 +418,14 @@ const removeProjectMember = async (projectId, userId, currentUser) => {
 
   member.isActive = false;
   await member.save();
+
+  try {
+    const { emitProjectEvent } = require("../socket");
+    emitProjectEvent(projectId, "project_member_removed", { projectId, userId });
+  } catch (err) {
+    console.error("Failed to emit project_member_removed socket event:", err.message);
+  }
+
   return member;
 };
 
@@ -446,6 +468,14 @@ const updateProjectMemberRole = async (projectId, userId, role, currentUser) => 
 
   member.role = role;
   await member.save();
+
+  try {
+    const { emitProjectEvent } = require("../socket");
+    emitProjectEvent(projectId, "project_member_role_updated", { projectId, userId, role });
+  } catch (err) {
+    console.error("Failed to emit project_member_role_updated socket event:", err.message);
+  }
+
   return member;
 };
 
@@ -487,6 +517,14 @@ const updateProject = async (projectId, data, currentUser) => {
   if (description !== undefined) project.description = description.trim();
 
   await project.save();
+
+  try {
+    const { emitWorkspaceEvent } = require("../socket");
+    emitWorkspaceEvent(project.workspace, "project_updated", project);
+  } catch (err) {
+    console.error("Failed to emit project_updated socket event:", err.message);
+  }
+
   return project;
 };
 
@@ -538,6 +576,13 @@ const deleteProject = async (projectId, currentUser) => {
 
   // Delete project itself
   await Project.findByIdAndDelete(projectId);
+
+  try {
+    const { emitWorkspaceEvent } = require("../socket");
+    emitWorkspaceEvent(project.workspace, "project_deleted", { projectId });
+  } catch (err) {
+    console.error("Failed to emit project_deleted socket event:", err.message);
+  }
 };
 
 module.exports = {

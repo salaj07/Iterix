@@ -1,7 +1,7 @@
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { AnimatePresence, motion } from "framer-motion";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Sidebar from "./Sidebar";
 import Topbar from "./Topbar";
 import TaskDetailModal from "@/components/tasks/TaskDetailModal";
@@ -15,7 +15,7 @@ import { roleLabel } from "@/lib/format";
 // Async thunks for data loading
 import { fetchWorkspaces } from "@/store/slices/workspaceSlice";
 import { fetchProjects, fetchProjectMembers } from "@/store/slices/projectsSlice";
-import { fetchMembers } from "@/store/slices/orgSlice";
+import { fetchMembers, fetchWorkspaceJoinRequests } from "@/store/slices/orgSlice";
 import { fetchProjectTasks, upsertTask, deleteTask } from "@/store/slices/tasksSlice";
 import { fetchSprints, upsertSprint, deleteSprint } from "@/store/slices/sprintsSlice";
 import { fetchNotifications, push as pushNotification } from "@/store/slices/notificationsSlice";
@@ -63,6 +63,17 @@ export default function AppShell() {
   const workspaces = useSelector(s => s.workspace.workspaces) || [];
   const loadingWorkspaces = useSelector(s => s.workspace.loading);
   const [hasFetchedWorkspaces, setHasFetchedWorkspaces] = useState(false);
+
+  const currentWorkspaceIdRef = useRef(currentWorkspaceId);
+  const currentProjectIdRef = useRef(currentProjectId);
+
+  useEffect(() => {
+    currentWorkspaceIdRef.current = currentWorkspaceId;
+  }, [currentWorkspaceId]);
+
+  useEffect(() => {
+    currentProjectIdRef.current = currentProjectId;
+  }, [currentProjectId]);
 
   // 1. Fetch workspaces and notifications on mount
   useEffect(() => {
@@ -180,6 +191,77 @@ export default function AppShell() {
       }
     });
 
+    socket.on("project_created", (data) => {
+      console.log("📁 Project created event received:", data);
+      dispatch(fetchProjects());
+    });
+
+    socket.on("project_updated", (data) => {
+      console.log("📁 Project updated event received:", data);
+      dispatch(fetchProjects());
+    });
+
+    socket.on("project_deleted", (data) => {
+      console.log("📁 Project deleted event received:", data);
+      dispatch(fetchProjects());
+    });
+
+    socket.on("workspace_member_joined", (data) => {
+      console.log("👥 Workspace member joined event received:", data);
+      if (currentWorkspaceIdRef.current) {
+        dispatch(fetchMembers(currentWorkspaceIdRef.current));
+      }
+    });
+
+    socket.on("workspace_member_removed", (data) => {
+      console.log("👥 Workspace member removed event received:", data);
+      if (currentWorkspaceIdRef.current) {
+        dispatch(fetchMembers(currentWorkspaceIdRef.current));
+      }
+    });
+
+    socket.on("workspace_member_role_updated", (data) => {
+      console.log("👥 Workspace member role updated event received:", data);
+      if (currentWorkspaceIdRef.current) {
+        dispatch(fetchMembers(currentWorkspaceIdRef.current));
+      }
+    });
+
+    socket.on("join_request_created", (data) => {
+      console.log("📥 Join request created event received:", data);
+      if (currentWorkspaceIdRef.current) {
+        dispatch(fetchWorkspaceJoinRequests(currentWorkspaceIdRef.current));
+      }
+    });
+
+    socket.on("join_request_resolved", (data) => {
+      console.log("📥 Join request resolved event received:", data);
+      if (currentWorkspaceIdRef.current) {
+        dispatch(fetchWorkspaceJoinRequests(currentWorkspaceIdRef.current));
+      }
+    });
+
+    socket.on("project_member_added", (data) => {
+      console.log("👥 Project member added event received:", data);
+      if (currentProjectIdRef.current && data && data.projectId === currentProjectIdRef.current) {
+        dispatch(fetchProjectMembers(currentProjectIdRef.current));
+      }
+    });
+
+    socket.on("project_member_removed", (data) => {
+      console.log("👥 Project member removed event received:", data);
+      if (currentProjectIdRef.current && data && data.projectId === currentProjectIdRef.current) {
+        dispatch(fetchProjectMembers(currentProjectIdRef.current));
+      }
+    });
+
+    socket.on("project_member_role_updated", (data) => {
+      console.log("👥 Project member role updated event received:", data);
+      if (currentProjectIdRef.current && data && data.projectId === currentProjectIdRef.current) {
+        dispatch(fetchProjectMembers(currentProjectIdRef.current));
+      }
+    });
+
     return () => {
       socket.off("connect");
       socket.off("disconnect");
@@ -190,6 +272,17 @@ export default function AppShell() {
       socket.off("sprint_created");
       socket.off("sprint_updated");
       socket.off("sprint_deleted");
+      socket.off("project_created");
+      socket.off("project_updated");
+      socket.off("project_deleted");
+      socket.off("workspace_member_joined");
+      socket.off("workspace_member_removed");
+      socket.off("workspace_member_role_updated");
+      socket.off("join_request_created");
+      socket.off("join_request_resolved");
+      socket.off("project_member_added");
+      socket.off("project_member_removed");
+      socket.off("project_member_role_updated");
       socket.disconnect();
       console.log("🔌 Socket disconnected on AppShell unmount");
     };
@@ -207,6 +300,19 @@ export default function AppShell() {
       socket.emit("leave_project", currentProjectId);
     };
   }, [currentProjectId]);
+
+  // 6.5 Manage workspace room subscription dynamically
+  useEffect(() => {
+    if (!currentWorkspaceId) return;
+
+    console.log(`🏢 Requesting to join room for workspace: ${currentWorkspaceId}`);
+    socket.emit("join_workspace", currentWorkspaceId);
+
+    return () => {
+      console.log(`🏢 Leaving room for workspace: ${currentWorkspaceId}`);
+      socket.emit("leave_workspace", currentWorkspaceId);
+    };
+  }, [currentWorkspaceId]);
 
   return (
     <div className="min-h-screen flex w-full bg-background text-foreground overflow-hidden">

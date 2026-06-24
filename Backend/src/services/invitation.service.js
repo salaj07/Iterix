@@ -221,6 +221,30 @@ const acceptInvitation = async (invitationId, user) => {
     console.error("Failed to send join workspace notification:", err);
   }
 
+  try {
+    const { emitWorkspaceEvent, emitProjectEvent } = require("../socket");
+    emitWorkspaceEvent(invitation.workspace, "workspace_member_joined", {
+      workspaceId: invitation.workspace,
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email
+      },
+      role: invitation.role || "DEVELOPER"
+    });
+
+    if (invitation.project) {
+      const projectRole = (invitation.role === "ADMIN" || invitation.role === "TEAM_LEAD") ? "TEAM_LEAD" : "DEVELOPER";
+      emitProjectEvent(invitation.project, "project_member_added", {
+        projectId: invitation.project,
+        userId: user._id,
+        role: projectRole
+      });
+    }
+  } catch (err) {
+    console.error("Failed to emit workspace_member_joined socket event:", err.message);
+  }
+
   return {
     message: "Invitation accepted successfully",
   };
