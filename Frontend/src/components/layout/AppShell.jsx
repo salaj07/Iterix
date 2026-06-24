@@ -87,7 +87,12 @@ export default function AppShell() {
 
   // Sync selected project to the active workspace
   useEffect(() => {
-    if (currentWorkspaceId && projects.length > 0) {
+    if (!currentWorkspaceId) {
+      dispatch(setCurrentProjectId(null));
+      return;
+    }
+
+    if (projects.length > 0) {
       const wsProjects = projects.filter(
         (p) => p && (p.workspace === currentWorkspaceId || p.workspaceId === currentWorkspaceId)
       );
@@ -98,8 +103,6 @@ export default function AppShell() {
         const firstProjId = wsProjects[0] ? (wsProjects[0].id || wsProjects[0]._id) : null;
         dispatch(setCurrentProjectId(firstProjId));
       }
-    } else if (!currentWorkspaceId || projects.length === 0) {
-      dispatch(setCurrentProjectId(null));
     }
   }, [currentWorkspaceId, projects, currentProjectId, dispatch]);
 
