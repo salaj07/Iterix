@@ -194,6 +194,37 @@ const removeMember = async (workspaceId, adminUser, memberId) => {
     throw new Error("Cannot remove the workspace owner");
   }
 
+  const Project = require("../models/project.model");
+  const ProjectMember = require("../models/projectMember.model");
+  const projects = await Project.find({ workspace: workspaceId });
+  const projectIds = projects.map(p => p._id);
+
+  // Check sole project lead constraint across all projects first
+  for (const pid of projectIds) {
+    const pm = await ProjectMember.findOne({ project: pid, user: memberId, role: "TEAM_LEAD", isActive: true });
+    if (pm) {
+      const activeLeadsCount = await ProjectMember.countDocuments({
+        project: pid,
+        role: "TEAM_LEAD",
+        isActive: true,
+      });
+
+      if (activeLeadsCount <= 1) {
+        const proj = projects.find(p => p._id.toString() === pid.toString());
+        const projName = proj ? proj.name : "the project";
+        throw new Error(`Cannot remove this user because they are the sole Project Lead of project "${projName}". Please assign another Project Lead to that project first.`);
+      }
+    }
+  }
+
+  // Soft-delete project memberships for this user
+  for (const pid of projectIds) {
+    await ProjectMember.findOneAndUpdate(
+      { project: pid, user: memberId, isActive: true },
+      { isActive: false }
+    );
+  }
+
   // Soft delete membership
   const membership = await WorkspaceMember.findOneAndUpdate(
     { workspace: workspaceId, user: memberId, isActive: true },
