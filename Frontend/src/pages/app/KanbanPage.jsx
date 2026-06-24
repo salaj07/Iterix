@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { useNavigate } from "react-router-dom";
 import { Plus, FolderKanban, Calendar, Search } from "lucide-react";
 import Button from "@/components/common/Button";
 import KanbanBoard from "@/components/kanban/KanbanBoard";
@@ -11,6 +12,7 @@ import { PRIORITIES, TASK_TYPES } from "@/store/seed";
 
 export default function KanbanPage() {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const currentWorkspaceId = useSelector(s => s.workspace.currentWorkspaceId);
   const currentProjectId = useSelector(s => s.projects.currentProjectId);
   const allProjects = useSelector(s => s.projects.projects) || [];
@@ -186,6 +188,24 @@ export default function KanbanPage() {
           </Select>
         </div>
       </GlassCard>
+
+      {selectedSprintId === "backlog" && (
+        <div className="flex items-center justify-between p-3.5 rounded-xl border border-[color:var(--primary)]/20 bg-[color:var(--primary)]/5 text-sm text-[color:var(--primary)] gap-4 animate-in fade-in-50 duration-200">
+          <div className="flex items-center gap-2.5">
+            <span className="w-2 h-2 rounded-full bg-[color:var(--primary)] animate-pulse" />
+            <span>
+              Backlog status tasks are not shown on the Kanban board.
+            </span>
+          </div>
+          <Button
+            size="sm"
+            onClick={() => navigate("/app/unscheduled?filter=backlog")}
+            className="text-xs shrink-0 bg-[color:var(--primary)] hover:bg-[color:var(--primary)]/90 text-white border-transparent"
+          >
+            View Backlog Tasks
+          </Button>
+        </div>
+      )}
 
       <KanbanBoard
         projectId={currentProjectId}

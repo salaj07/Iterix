@@ -19,9 +19,7 @@ export default function KanbanBoard({ projectId = null, sprintId = undefined, se
   const projects = useSelector(s => s.projects.projects || []);
   const projectMembers = useSelector(s => s.projects.projectMembers || []);
 
-  const STATUSES = sprintId === "backlog" || sprintId === null
-    ? ["Backlog", "Todo", "In Progress", "In Review", "Done"]
-    : KANBAN_STATUSES;
+  const STATUSES = KANBAN_STATUSES;
 
   const visible = (projectId ? allTasks.filter(t => t.projectId === projectId) : allTasks)
     .filter(t => !t.archived)

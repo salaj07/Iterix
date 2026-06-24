@@ -16,7 +16,7 @@ import { cn } from "@/lib/utils";
 const projectItems = [
   { to: "/app/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/app/kanban", label: "Kanban Board", icon: Trello },
-  { to: "/app/backlog", label: "Backlog", icon: Layers },
+  { to: "/app/unscheduled", label: "Unscheduled Work", icon: Layers },
   { to: "/app/sprints", label: "Sprints", icon: ListChecks },
   { to: "/app/teams", label: "Project Members", icon: Users },
   { to: "/app/reports", label: "Reports", icon: BarChart3 },
