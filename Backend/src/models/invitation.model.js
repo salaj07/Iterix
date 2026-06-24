@@ -59,4 +59,15 @@ invitationSchema.index(
   }
 );
 
+// Auto-expire pending invitations after 7 days (604800 seconds)
+invitationSchema.index(
+  { createdAt: 1 },
+  {
+    expireAfterSeconds: 604800,
+    partialFilterExpression: {
+      status: "PENDING",
+    },
+  }
+);
+
 module.exports = mongoose.model("Invitation", invitationSchema);

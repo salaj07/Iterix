@@ -7,7 +7,7 @@ import Button from "@/components/common/Button";
 import Modal from "@/components/common/Modal";
 import Avatar from "@/components/common/Avatar";
 import { roleLabel, roleTone, formatRelative } from "@/lib/format";
-import { inviteMemberAsync, acceptInvitationAsync, fetchWorkspaceInvitations, fetchMembers, updateMemberRoleAsync, removeMemberAsync } from "@/store/slices/orgSlice";
+import { inviteMemberAsync, acceptInvitationAsync, fetchWorkspaceInvitations, fetchMembers, updateMemberRoleAsync, removeMemberAsync, cancelInvitationAsync } from "@/store/slices/orgSlice";
 import { fetchProjectMembers, addProjectMemberAsync, removeProjectMemberAsync, updateProjectMemberRoleAsync } from "@/store/slices/projectsSlice";
 import { ROLES } from "@/store/seed";
 
@@ -355,13 +355,32 @@ export default function Teams() {
               <ul className="divide-y divide-border -mx-2">
                 {invitations.filter(inv => inv && inv.status === "pending").map(inv => (
                   <li key={inv.id} className="px-2 py-3 flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-full bg-foreground/5 flex items-center justify-center text-muted-foreground"><Mail size={14} /></div>                    <div className="flex-1 min-w-0">
+                    <div className="w-9 h-9 rounded-full bg-foreground/5 flex items-center justify-center text-muted-foreground"><Mail size={14} /></div>
+                    <div className="flex-1 min-w-0">
                       <div className="text-sm font-medium truncate">{inv.name} — <span className="text-muted-foreground">{inv.email}</span></div>
                       <div className="text-xs text-muted-foreground">Sent {formatRelative(inv.sentAt)} · {roleLabel(inv.role)}</div>
                     </div>
-                    <Badge tone="bg-amber-500/10 text-amber-500 border-amber-500/20">
-                      {inv.status}
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      <Badge tone="bg-amber-500/10 text-amber-500 border-amber-500/20">
+                        {inv.status}
+                      </Badge>
+                      {isWorkspaceAdmin && (
+                        <button
+                          onClick={async () => {
+                            const res = await dispatch(cancelInvitationAsync(inv.id));
+                            if (cancelInvitationAsync.fulfilled.match(res)) {
+                              toast.success("Invitation cancelled successfully");
+                            } else {
+                              toast.error(res.payload?.message || "Failed to cancel invitation");
+                            }
+                          }}
+                          className="p-1.5 rounded-md hover:bg-red-500/10 text-muted-foreground hover:text-red-500 transition-colors"
+                          title="Cancel Invitation"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      )}
+                    </div>
                   </li>
                 ))}
               </ul>

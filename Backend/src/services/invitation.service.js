@@ -265,10 +265,41 @@ const getWorkspaceInvitations = async (workspaceId, adminUser) => {
     .sort({ createdAt: -1 });
 };
 
+const cancelInvitation = async (invitationId, currentUser) => {
+  const invitation = await Invitation.findById(invitationId);
+  if (!invitation) {
+    throw new Error("Invitation not found");
+  }
+
+  if (invitation.status !== "PENDING") {
+    throw new Error("Only pending invitations can be cancelled");
+  }
+
+  // Check if currentUser is ADMIN of the workspace
+  const adminMembership = await WorkspaceMember.findOne({
+    workspace: invitation.workspace,
+    user: currentUser._id,
+    role: "ADMIN",
+    isActive: true,
+  });
+
+  if (!adminMembership) {
+    throw new Error("Only workspace admins can cancel invitations");
+  }
+
+  // Remove the invitation
+  await Invitation.findByIdAndDelete(invitationId);
+
+  return {
+    message: "Invitation cancelled successfully",
+  };
+};
+
 module.exports = {
   inviteMember,
   getMyInvitations,
   acceptInvitation,
   rejectInvitation,
   getWorkspaceInvitations,
+  cancelInvitation,
 };

@@ -23,3 +23,7 @@ export const rejectInvitation = (invitationId) =>
 /** Get all invitations sent by a specific workspace */
 export const getWorkspaceInvitations = (workspaceId) =>
   api.get(`/api/workspaces/${workspaceId}/invitations`);
+
+/** Cancel an invitation */
+export const cancelInvitation = (invitationId) =>
+  api.delete(`/api/invitations/${invitationId}/cancel`);
