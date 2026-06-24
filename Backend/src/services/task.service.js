@@ -42,17 +42,25 @@ const mapTaskToFrontend = (task) => {
   const projectId = t.project && (t.project._id || t.project);
   const sprintId = t.sprint && (t.sprint._id || t.sprint);
 
+  const subtasks = (t.subtasks || []).map((s) => ({
+    id: s._id ? String(s._id) : s.id,
+    title: s.title,
+    done: s.done,
+  }));
+
   return {
     ...t,
     id: t._id,
     status,
     priority,
+    type: t.type || "Task",
     projectId: projectId ? String(projectId) : null,
     sprintId: sprintId ? String(sprintId) : null,
     assigneeId: assigneeId ? String(assigneeId) : null,
     reporterId: t.createdBy ? String(t.createdBy) : null,
     points: t.storyPoints || 0,
     archived: t.isArchived || false,
+    subtasks,
   };
 };
 
@@ -60,6 +68,7 @@ const mapFrontendToTaskData = (data) => {
   const mapped = {};
   if (data.title !== undefined) mapped.title = data.title;
   if (data.description !== undefined) mapped.description = data.description;
+  if (data.type !== undefined) mapped.type = data.type;
   
   // Map priority
   if (data.priority !== undefined) {
@@ -197,7 +206,6 @@ const createTask = async (data, currentUser) => {
     ],
   });
 
-  // Notify assignee if not the creator
   if (task.assignee && task.assignee.toString() !== currentUser._id.toString()) {
     try {
       const { createNotification } = require("./notification.service");
@@ -206,6 +214,8 @@ const createTask = async (data, currentUser) => {
         title: "Task Assigned",
         message: `You have been assigned to the task: "${task.title}".`,
         type: "TASK_ASSIGNED",
+        projectId: task.project,
+        taskId: task._id,
       });
     } catch (err) {
       console.error("Failed to send assignee notification on task create:", err);
@@ -334,6 +344,8 @@ const assignTask = async (taskId, assigneeId, currentUser) => {
       title: "Task Assigned",
       message: `You have been assigned to the task: "${task.title}".`,
       type: "TASK_ASSIGNED",
+      projectId: task.project,
+      taskId: task._id,
     });
   }
 
@@ -508,6 +520,8 @@ const changeTaskStatus = async (taskId, status, currentUser) => {
             title: "Task in Review",
             message: `Task "${task.title}" has been moved to In Review.`,
             type: "SPRINT",
+            projectId: task.project,
+            taskId: task._id,
           });
         }
       }
@@ -519,6 +533,8 @@ const changeTaskStatus = async (taskId, status, currentUser) => {
             title: "Task Completed",
             message: `Task "${task.title}" has been moved to Done.`,
             type: "TASK_APPROVED",
+            projectId: task.project,
+            taskId: task._id,
           });
         }
       }
@@ -588,6 +604,8 @@ const approveTask = async (taskId, currentUser) => {
         title: "Task Approved",
         message: `Task "${task.title}" has been approved.`,
         type: "TASK_APPROVED",
+        projectId: task.project,
+        taskId: task._id,
       });
     }
   }
@@ -599,6 +617,8 @@ const approveTask = async (taskId, currentUser) => {
       title: "Task Approved",
       message: `Your task "${task.title}" has been approved by ${currentUser.name || "Project Lead"}.`,
       type: "TASK_APPROVED",
+      projectId: task.project,
+      taskId: task._id,
     });
   }
 
@@ -666,6 +686,8 @@ const requestChanges = async (taskId, note, currentUser) => {
         title: "Changes Requested",
         message: `Changes were requested on task "${task.title}".`,
         type: "TASK_REJECTED",
+        projectId: task.project,
+        taskId: task._id,
       });
     }
   }
@@ -677,6 +699,8 @@ const requestChanges = async (taskId, note, currentUser) => {
       title: "Changes Requested",
       message: `Changes were requested on "${task.title}": "${note || ""}"`,
       type: "TASK_REJECTED",
+      projectId: task.project,
+      taskId: task._id,
     });
   }
 
@@ -816,6 +840,18 @@ const updateTask = async (taskId, updateData, currentUser) => {
     task.isArchived = !!updateData.archived;
   }
 
+  if (updateData.type !== undefined) {
+    task.type = updateData.type;
+  }
+
+  if (updateData.subtasks !== undefined) {
+    task.subtasks = updateData.subtasks.map(s => ({
+      _id: s.id || s._id || undefined,
+      title: s.title,
+      done: !!s.done,
+    }));
+  }
+
   if (updateData.sprintId !== undefined) {
     if (updateData.sprintId) {
       const sprint = await Sprint.findById(updateData.sprintId);
@@ -887,6 +923,8 @@ const updateTask = async (taskId, updateData, currentUser) => {
                   title: "Task in Review",
                   message: `Task "${task.title}" has been moved to In Review.`,
                   type: "SPRINT",
+                  projectId: task.project,
+                  taskId: task._id,
                 });
               }
             }
@@ -898,6 +936,8 @@ const updateTask = async (taskId, updateData, currentUser) => {
                   title: "Task Completed",
                   message: `Task "${task.title}" has been moved to Done.`,
                   type: "TASK_APPROVED",
+                  projectId: task.project,
+                  taskId: task._id,
                 });
               }
             }
@@ -920,6 +960,8 @@ const updateTask = async (taskId, updateData, currentUser) => {
         title: "Task Assigned",
         message: `You have been assigned to the task: "${task.title}".`,
         type: "TASK_ASSIGNED",
+        projectId: task.project,
+        taskId: task._id,
       });
     } catch (err) {
       console.error("Failed to send assignee notification on task update:", err);

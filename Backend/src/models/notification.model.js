@@ -25,6 +25,18 @@ const notificationSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    projectId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Project",
+    },
+    taskId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Task",
+    },
+    workspaceId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Workspace",
+    },
   },
   {
     timestamps: true,

@@ -25,6 +25,7 @@ const projectItems = [
 const globalItems = [
   { to: "/app/projects", label: "Projects", icon: FolderKanban },
   { to: "/app/workspaces", label: "Workspaces", icon: Boxes },
+  { to: "/app/workspace-members", label: "Workspace Members", icon: Users },
   { to: "/app/notifications", label: "Notifications", icon: Bell },
   { to: "/app/settings", label: "Settings", icon: Settings },
 ];
