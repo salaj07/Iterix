@@ -43,6 +43,12 @@ const taskSchema = new mongoose.Schema(
       trim: true,
     },
 
+    type: {
+      type: String,
+      enum: ["Story", "Task", "Bug", "Epic"],
+      default: "Task",
+    },
+
     priority: {
       type: String,
       enum: ["LOW", "MEDIUM", "HIGH", "CRITICAL"],
@@ -77,6 +83,20 @@ const taskSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
+
+    subtasks: [
+      {
+        title: {
+          type: String,
+          required: true,
+          trim: true,
+        },
+        done: {
+          type: Boolean,
+          default: false,
+        },
+      },
+    ],
 
     history: [
       {

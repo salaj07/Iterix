@@ -42,17 +42,25 @@ const mapTaskToFrontend = (task) => {
   const projectId = t.project && (t.project._id || t.project);
   const sprintId = t.sprint && (t.sprint._id || t.sprint);
 
+  const subtasks = (t.subtasks || []).map((s) => ({
+    id: s._id ? String(s._id) : s.id,
+    title: s.title,
+    done: s.done,
+  }));
+
   return {
     ...t,
     id: t._id,
     status,
     priority,
+    type: t.type || "Task",
     projectId: projectId ? String(projectId) : null,
     sprintId: sprintId ? String(sprintId) : null,
     assigneeId: assigneeId ? String(assigneeId) : null,
     reporterId: t.createdBy ? String(t.createdBy) : null,
     points: t.storyPoints || 0,
     archived: t.isArchived || false,
+    subtasks,
   };
 };
 
@@ -60,6 +68,7 @@ const mapFrontendToTaskData = (data) => {
   const mapped = {};
   if (data.title !== undefined) mapped.title = data.title;
   if (data.description !== undefined) mapped.description = data.description;
+  if (data.type !== undefined) mapped.type = data.type;
   
   // Map priority
   if (data.priority !== undefined) {
@@ -814,6 +823,18 @@ const updateTask = async (taskId, updateData, currentUser) => {
       });
     }
     task.isArchived = !!updateData.archived;
+  }
+
+  if (updateData.type !== undefined) {
+    task.type = updateData.type;
+  }
+
+  if (updateData.subtasks !== undefined) {
+    task.subtasks = updateData.subtasks.map(s => ({
+      _id: s.id || s._id || undefined,
+      title: s.title,
+      done: !!s.done,
+    }));
   }
 
   if (updateData.sprintId !== undefined) {

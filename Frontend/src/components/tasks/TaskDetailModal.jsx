@@ -103,7 +103,8 @@ export default function TaskDetailModal({ taskId, onClose }) {
 
   const addSub = () => {
     if (!newSub.trim()) return;
-    dispatch(addSubtask({ taskId: task.id, title: newSub.trim() }));
+    const updatedSubtasks = [...(task.subtasks || []), { title: newSub.trim(), done: false }];
+    dispatch(updateTaskDetailsAsync({ taskId: task.id, data: { subtasks: updatedSubtasks } }));
     setNewSub("");
   };
 
@@ -156,7 +157,12 @@ export default function TaskDetailModal({ taskId, onClose }) {
             </div>
             <div className="space-y-1.5">
               {task.subtasks.map(s => (
-                <button key={s.id} onClick={() => dispatch(toggleSubtask({ taskId: task.id, subtaskId: s.id }))}
+                <button key={s.id} onClick={() => {
+                  const updatedSubtasks = (task.subtasks || []).map(sub =>
+                    sub.id === s.id ? { ...sub, done: !sub.done } : sub
+                  );
+                  dispatch(updateTaskDetailsAsync({ taskId: task.id, data: { subtasks: updatedSubtasks } }));
+                }}
                   className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-md hover:bg-foreground/5 text-left">
                   {s.done ? <CheckSquare size={16} className="text-[color:var(--primary)]" /> : <Square size={16} className="text-muted-foreground" />}
                   <span className={`text-sm ${s.done ? "line-through text-muted-foreground" : ""}`}>{s.title}</span>

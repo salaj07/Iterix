@@ -396,12 +396,25 @@ const slice = createSlice({
         state.loading = false;
         const task = payload.data;
         if (task) {
-          state.tasks.push({
-            subtasks: [],
-            comments: [],
-            history: [],
-            ...mapTaskFromBackend(task),
-          });
+          const id = task._id || task.id;
+          const idx = state.tasks.findIndex((t) => t.id === id || t._id === id);
+          const mapped = mapTaskFromBackend(task);
+          if (idx !== -1) {
+            state.tasks[idx] = {
+              subtasks: [],
+              comments: [],
+              history: [],
+              ...state.tasks[idx],
+              ...mapped,
+            };
+          } else {
+            state.tasks.push({
+              subtasks: [],
+              comments: [],
+              history: [],
+              ...mapped,
+            });
+          }
         }
       })
       .addCase(createTaskAsync.rejected, (state, { payload }) => {

@@ -30,6 +30,7 @@ export default function Unscheduled() {
 
   const allSprints = useSelector(s => s.sprints.sprints) || [];
   const sprints = allSprints.filter(s => s && s.projectId === currentProjectId);
+  const activeSprint = sprints.find(s => s.status === "active");
 
   const projectMembers = useSelector(s => s.projects.projectMembers) || [];
   const workspaceMembers = useSelector(s => s.org.members) || [];
@@ -253,8 +254,15 @@ export default function Unscheduled() {
                   </div>
                   <div className="col-span-9 md:col-span-1 flex justify-end gap-1">
                     {isProjectLead && (
-                      <button onClick={() => addToSprint(t)} title="Add to active sprint"
-                        className="p-1.5 rounded-md hover:bg-foreground/5 text-muted-foreground hover:text-[color:var(--primary)]">
+                      <button
+                        onClick={() => addToSprint(t)}
+                        disabled={!activeSprint}
+                        title={activeSprint ? `Move to active sprint: ${activeSprint.name}` : "No active sprint in this project"}
+                        className={cn(
+                          "p-1.5 rounded-md hover:bg-foreground/5 transition-colors",
+                          activeSprint ? "text-muted-foreground hover:text-[color:var(--primary)]" : "text-muted-foreground/30 cursor-not-allowed"
+                        )}
+                      >
                         <ArrowRight size={15} />
                       </button>
                     )}
