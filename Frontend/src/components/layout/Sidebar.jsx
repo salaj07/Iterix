@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import {
   LayoutDashboard, FolderKanban, Users, ListChecks, Trello, Layers,
   BarChart3, Bell, Settings, Boxes, Mail, ChevronLeft, ChevronRight, X, Sparkles,
-  Building2, Plus, ChevronDown
+  Building2, Plus, ChevronDown, PanelLeftOpen, PanelLeftClose
 } from "lucide-react";
 import { toggleSidebar } from "@/store/slices/uiSlice";
 import { setCurrentWorkspace } from "@/store/slices/workspaceSlice";
@@ -80,32 +80,30 @@ function SidebarInner({ collapsed, onCloseMobile }) {
   return (
     <div className="h-full flex flex-col bg-[color:var(--sidebar)] backdrop-blur-xl border-r border-[color:var(--sidebar-border)]">
       {/* Title / Logo Header */}
-      <div className="h-16 flex items-center px-4 border-b border-[color:var(--sidebar-border)] gap-3">
-        <button onClick={() => navigate("/app/dashboard")} className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-[10px] bg-[color:var(--primary)] flex items-center justify-center text-white shrink-0">
-            <Sparkles size={16} />
-          </div>
-          <AnimatePresence>
-            {!collapsed && (
-              <motion.span
-                initial={{ opacity: 0, x: -6 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -6 }}
-                className="font-display font-bold text-[15px] tracking-tight"
-              >
-                Iterix
-              </motion.span>
-            )}
-          </AnimatePresence>
-        </button>
+      <div className={cn("h-16 flex items-center border-b border-[color:var(--sidebar-border)]", collapsed ? "justify-center px-2" : "px-4 gap-3")}>
+        {!collapsed && (
+          <button onClick={() => navigate("/app/dashboard")} className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-[10px] bg-[color:var(--primary)] flex items-center justify-center text-white shrink-0">
+              <Sparkles size={16} />
+            </div>
+            <span className="font-display font-bold text-[15px] tracking-tight">
+              Iterix
+            </span>
+          </button>
+        )}
 
         <button
-          className="ml-auto p-1.5 rounded-lg hover:bg-foreground/5 text-muted-foreground hidden md:block"
+          className={cn("p-1.5 rounded-lg hover:bg-foreground/5 text-muted-foreground hidden md:block", !collapsed && "ml-auto")}
           onClick={() => dispatch(toggleSidebar())}
+          title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
-          {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+          {collapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
         </button>
-        <button className="ml-auto p-1.5 rounded-lg hover:bg-foreground/5 text-muted-foreground md:hidden" onClick={onCloseMobile}>
-          <X size={18} />
-        </button>
+        {!collapsed && (
+          <button className="ml-auto p-1.5 rounded-lg hover:bg-foreground/5 text-muted-foreground md:hidden" onClick={onCloseMobile}>
+            <X size={18} />
+          </button>
+        )}
       </div>
 
       {/* Workspace & Project Selection Pane */}
@@ -263,7 +261,8 @@ function SidebarInner({ collapsed, onCloseMobile }) {
                 <NavLink
                   key={item.to} to={item.to} onClick={onCloseMobile}
                   className={({ isActive }) => cn(
-                    "group relative flex items-center gap-3 px-3 h-10 rounded-[12px] text-sm font-medium transition-colors",
+                    "group relative flex items-center h-10 rounded-[12px] text-sm font-medium transition-colors",
+                    collapsed ? "justify-center px-0" : "gap-3 px-3",
                     isActive
                       ? "bg-[color:var(--sidebar-accent)] text-foreground"
                       : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
@@ -311,7 +310,8 @@ function SidebarInner({ collapsed, onCloseMobile }) {
                 <NavLink
                   key={item.to} to={item.to} onClick={onCloseMobile}
                   className={({ isActive }) => cn(
-                    "group relative flex items-center gap-3 px-3 h-10 rounded-[12px] text-sm font-medium transition-colors",
+                    "group relative flex items-center h-10 rounded-[12px] text-sm font-medium transition-colors",
+                    collapsed ? "justify-center px-0" : "gap-3 px-3",
                     isActive
                       ? "bg-[color:var(--sidebar-accent)] text-foreground"
                       : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
