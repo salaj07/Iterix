@@ -43,4 +43,13 @@ router.post(
   invitationController.rejectInvitation
 );
 
+// Cancel invitation (admin-only)
+router.delete(
+  "/invitations/:invitationId/cancel",
+  protect,
+  invitationIdRules,
+  validate,
+  invitationController.cancelInvitation
+);
+
 module.exports = router;

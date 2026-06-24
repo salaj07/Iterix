@@ -104,10 +104,32 @@ const getWorkspaceInvitations = async (req, res, next) => {
   }
 };
 
+/**
+ * Cancel invitation (admin-only)
+ */
+const cancelInvitation = async (req, res, next) => {
+  try {
+    const { invitationId } = req.params;
+
+    const result = await invitationService.cancelInvitation(
+      invitationId,
+      req.user
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: result.message,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   inviteMember,
   getMyInvitations,
   acceptInvitation,
   rejectInvitation,
   getWorkspaceInvitations,
+  cancelInvitation,
 };

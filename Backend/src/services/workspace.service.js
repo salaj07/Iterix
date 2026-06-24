@@ -132,6 +132,35 @@ const updateMemberRole = async (workspaceId, adminUser, memberId, newRole) => {
     throw new Error("Only workspace admins can update member roles");
   }
 
+  // If the new workspace role is DEVELOPER or MEMBER, demote them to DEVELOPER in all projects where they are currently TEAM_LEAD
+  if (newRole === "DEVELOPER" || newRole === "MEMBER") {
+    const Project = require("../models/project.model");
+    const ProjectMember = require("../models/projectMember.model");
+    const projects = await Project.find({ workspace: workspaceId });
+    const projectIds = projects.map(p => p._id);
+
+    for (const pid of projectIds) {
+      const pm = await ProjectMember.findOne({ project: pid, user: memberId, role: "TEAM_LEAD", isActive: true });
+      if (pm) {
+        // Ensure there is at least one other active TEAM_LEAD in the project
+        const activeLeadsCount = await ProjectMember.countDocuments({
+          project: pid,
+          role: "TEAM_LEAD",
+          isActive: true,
+        });
+
+        if (activeLeadsCount > 1) {
+          pm.role = "DEVELOPER";
+          await pm.save();
+        } else {
+          const proj = await Project.findById(pid);
+          const projName = proj ? proj.name : "the project";
+          throw new Error(`Cannot demote this user because they are the sole Project Lead of project "${projName}". Please assign another Project Lead to that project first.`);
+        }
+      }
+    }
+  }
+
   // Update role
   const membership = await WorkspaceMember.findOneAndUpdate(
     { workspace: workspaceId, user: memberId, isActive: true },
@@ -163,6 +192,37 @@ const removeMember = async (workspaceId, adminUser, memberId) => {
   const workspace = await Workspace.findById(workspaceId);
   if (workspace && workspace.owner.toString() === memberId.toString()) {
     throw new Error("Cannot remove the workspace owner");
+  }
+
+  const Project = require("../models/project.model");
+  const ProjectMember = require("../models/projectMember.model");
+  const projects = await Project.find({ workspace: workspaceId });
+  const projectIds = projects.map(p => p._id);
+
+  // Check sole project lead constraint across all projects first
+  for (const pid of projectIds) {
+    const pm = await ProjectMember.findOne({ project: pid, user: memberId, role: "TEAM_LEAD", isActive: true });
+    if (pm) {
+      const activeLeadsCount = await ProjectMember.countDocuments({
+        project: pid,
+        role: "TEAM_LEAD",
+        isActive: true,
+      });
+
+      if (activeLeadsCount <= 1) {
+        const proj = projects.find(p => p._id.toString() === pid.toString());
+        const projName = proj ? proj.name : "the project";
+        throw new Error(`Cannot remove this user because they are the sole Project Lead of project "${projName}". Please assign another Project Lead to that project first.`);
+      }
+    }
+  }
+
+  // Soft-delete project memberships for this user
+  for (const pid of projectIds) {
+    await ProjectMember.findOneAndUpdate(
+      { project: pid, user: memberId, isActive: true },
+      { isActive: false }
+    );
   }
 
   // Soft delete membership

@@ -5,9 +5,10 @@ import { Plus, Play, Check, Calendar, Loader2, FolderKanban, Trash2 } from "luci
 import { GlassCard, Badge, Input, Label, Textarea } from "@/components/common/Primitives";
 import Button from "@/components/common/Button";
 import Modal from "@/components/common/Modal";
-import { formatDate } from "@/lib/format";
+import { formatDate, priorityTone } from "@/lib/format";
 import { fetchSprints, createSprintAsync, startSprintAsync, completeSprintAsync, deleteSprintAsync } from "@/store/slices/sprintsSlice";
 import { fetchProjectMembers } from "@/store/slices/projectsSlice";
+import { openTask } from "@/store/slices/uiSlice";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
@@ -57,6 +58,7 @@ export default function Sprints() {
 
   const [open, setOpen] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [viewingSprint, setViewingSprint] = useState(null);
   const [form, setForm] = useState({
     name: "",
     goal: "",
@@ -279,6 +281,9 @@ export default function Sprints() {
                         <Check size={14} /> Complete
                       </Button>
                     )}
+                    <Button size="sm" variant="ghost" onClick={() => setViewingSprint(s)}>
+                      View Tasks
+                    </Button>
                   </div>
                   {canManageSprints && (
                     <button
@@ -339,6 +344,68 @@ export default function Sprints() {
             </div>
           </div>
         </div>
+      </Modal>
+
+      {/* Modal: View Sprint Tasks & Details */}
+      <Modal
+        open={!!viewingSprint}
+        onClose={() => setViewingSprint(null)}
+        title={viewingSprint ? `Sprint: ${viewingSprint.name}` : ""}
+        footer={
+          <div className="flex justify-end">
+            <Button onClick={() => setViewingSprint(null)}>Close</Button>
+          </div>
+        }
+      >
+        {viewingSprint && (() => {
+          const sTasks = tasks.filter(t => t.sprintId === (viewingSprint._id || viewingSprint.id));
+          return (
+            <div className="space-y-4">
+              <div>
+                <Label className="text-muted-foreground text-xs uppercase tracking-wider">Goal</Label>
+                <div className="text-sm font-medium mt-1 p-3 rounded-lg bg-foreground/[0.03] border border-border">
+                  {viewingSprint.goal || <span className="text-muted-foreground italic">No goal defined for this sprint.</span>}
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3 text-xs">
+                <div>
+                  <Label className="text-muted-foreground uppercase tracking-wider">Duration</Label>
+                  <div className="mt-1 font-medium">{formatDate(viewingSprint.startDate)} → {formatDate(viewingSprint.endDate)}</div>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground uppercase tracking-wider">Status</Label>
+                  <div className="mt-1"><Badge className="capitalize">{viewingSprint.status}</Badge></div>
+                </div>
+              </div>
+              
+              <div className="border-t border-border pt-4">
+                <Label className="text-muted-foreground text-xs uppercase tracking-wider font-semibold mb-2 block">Tasks ({sTasks.length})</Label>
+                {sTasks.length === 0 ? (
+                  <div className="py-8 text-center text-sm text-muted-foreground">No tasks assigned to this sprint.</div>
+                ) : (
+                  <div className="mt-2 divide-y divide-border border border-border rounded-xl overflow-hidden max-h-60 overflow-y-auto">
+                    {sTasks.map(t => (
+                      <div
+                        key={t.id}
+                        onClick={() => {
+                          setViewingSprint(null);
+                          dispatch(openTask(t.id));
+                        }}
+                        className="p-3 flex items-center justify-between gap-3 text-sm hover:bg-foreground/[0.02] cursor-pointer transition-colors"
+                      >
+                        <div className="font-medium truncate">{t.title}</div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <Badge tone={priorityTone(t.priority)}>{t.priority}</Badge>
+                          <Badge className="text-[10px] capitalize">{t.status.toLowerCase()}</Badge>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })()}
       </Modal>
     </div>
   );

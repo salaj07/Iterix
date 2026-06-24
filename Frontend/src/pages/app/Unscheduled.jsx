@@ -1,19 +1,24 @@
 import { useMemo, useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Search, Filter, Plus, ArrowRight, Trash2, FolderKanban } from "lucide-react";
+import { Search, Filter, Plus, ArrowRight, Trash2, FolderKanban, Calendar } from "lucide-react";
 import Button from "@/components/common/Button";
 import { Input, Select, Badge, GlassCard } from "@/components/common/Primitives";
 import Avatar from "@/components/common/Avatar";
 import { openTask } from "@/store/slices/uiSlice";
-import { moveTask, deleteTaskAsync, updateTask, moveToSprintAsync, changeTaskStatusAsync, fetchProjectTasks } from "@/store/slices/tasksSlice";
+import { moveTask, deleteTaskAsync, updateTask, moveToSprintAsync, changeTaskStatusAsync } from "@/store/slices/tasksSlice";
 import { priorityTone, typeTone } from "@/lib/format";
 import { PRIORITIES, TASK_TYPES } from "@/store/seed";
 import { can, ACTIONS } from "@/lib/rbac";
 import CreateTaskModal from "@/components/tasks/CreateTaskModal";
+import { cn } from "@/lib/utils";
 
-export default function Backlog() {
+export default function Unscheduled() {
   const dispatch = useDispatch();
+  const [searchParams] = useSearchParams();
+  const filterParam = searchParams.get("filter");
+
   const currentWorkspaceId = useSelector(s => s.workspace.currentWorkspaceId);
   const currentProjectId = useSelector(s => s.projects.currentProjectId);
   const allProjects = useSelector(s => s.projects.projects) || [];
@@ -51,6 +56,7 @@ export default function Backlog() {
   const [assigneeId, setAssigneeId] = useState(() => {
     return localStorage.getItem(`Iterix-backlog-filter-assignee-${currentProjectId}`) || "";
   });
+  const [statusFilter, setStatusFilter] = useState(filterParam === "backlog" ? "Backlog" : "");
   const [open, setOpen] = useState(false);
 
   // Sync state when project changes
@@ -62,6 +68,13 @@ export default function Backlog() {
       setAssigneeId(localStorage.getItem(`Iterix-backlog-filter-assignee-${currentProjectId}`) || "");
     }
   }, [currentProjectId]);
+
+  // Sync status filter when query parameter changes
+  useEffect(() => {
+    if (filterParam === "backlog") {
+      setStatusFilter("Backlog");
+    }
+  }, [filterParam]);
 
   const handleQChange = (val) => {
     setQ(val);
@@ -82,6 +95,7 @@ export default function Backlog() {
 
   const backlog = useMemo(() => tasks.filter(t => {
     if (t.sprintId) return false;
+    if (statusFilter && t.status !== statusFilter) return false;
     if (priority && t.priority !== priority) return false;
     if (type && t.type !== type) return false;
     if (assigneeId) {
@@ -93,7 +107,7 @@ export default function Backlog() {
     }
     if (q && !t.title.toLowerCase().includes(q.toLowerCase())) return false;
     return true;
-  }), [tasks, q, priority, type, assigneeId]);
+  }), [tasks, q, priority, type, assigneeId, statusFilter]);
 
   const addToSprint = (t) => {
     const active = sprints.find(s => s.status === "active");
@@ -108,7 +122,7 @@ export default function Backlog() {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center">
         <h2 className="font-display text-2xl font-bold">No workspace selected</h2>
-        <p className="text-sm text-muted-foreground mt-2">Please select or create a workspace to view your backlog.</p>
+        <p className="text-sm text-muted-foreground mt-2">Please select or create a workspace to view unscheduled work.</p>
       </div>
     );
   }
@@ -121,7 +135,7 @@ export default function Backlog() {
         </div>
         <h2 className="font-display text-2xl font-bold">No project selected</h2>
         <p className="text-sm text-muted-foreground mt-2 max-w-sm">
-          Please select a project from the workspace menu in the left pane to view its backlog.
+          Please select a project from the workspace menu in the left pane to view its unscheduled work.
         </p>
       </div>
     );
@@ -134,11 +148,11 @@ export default function Backlog() {
           <div className="text-xs text-muted-foreground tracking-wider uppercase font-semibold">
             Project: {currentProject?.projectKey} · {currentProject?.name}
           </div>
-          <h1 className="font-display text-3xl font-bold mt-1">Backlog</h1>
-          <p className="text-sm text-muted-foreground mt-1">All unscheduled work. Prioritize and pull into a sprint.</p>
+          <h1 className="font-display text-3xl font-bold mt-1">Unscheduled Work</h1>
+          <p className="text-sm text-muted-foreground mt-1">Unscheduled tasks in this project. Move to Todo to start working, or schedule into a sprint.</p>
         </div>
         {can(role, ACTIONS.CREATE_TASK) && (
-          <Button onClick={() => setOpen(true)}><Plus size={15} /> New backlog item</Button>
+          <Button onClick={() => setOpen(true)}><Plus size={15} /> New task</Button>
         )}
       </div>
 
@@ -146,8 +160,16 @@ export default function Backlog() {
         <div className="flex flex-wrap gap-2 items-center">
           <div className="relative flex-1 min-w-[200px]">
             <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <Input value={q} onChange={(e) => handleQChange(e.target.value)} className="h-10 pl-9" placeholder="Search backlog…" />
+            <Input value={q} onChange={(e) => handleQChange(e.target.value)} className="h-10 pl-9" placeholder="Search tasks…" />
           </div>
+          <Select className="w-48" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+            <option value="">All Unscheduled</option>
+            <option value="Backlog">Backlog Status Only</option>
+            <option value="Todo">Todo Status Only</option>
+            <option value="In Progress">In Progress Only</option>
+            <option value="In Review">In Review Only</option>
+            <option value="Done">Done Only</option>
+          </Select>
           <Select className="w-40" value={assigneeId} onChange={(e) => handleAssigneeChange(e.target.value)}>
             <option value="">Any assignee</option>
             <option value="unassigned">Unassigned</option>
@@ -170,16 +192,17 @@ export default function Backlog() {
         {backlog.length === 0 ? (
           <div className="py-16 text-center text-sm text-muted-foreground">
             <Filter className="mx-auto mb-3 opacity-40" />
-            No backlog items match your filters.
+            No tasks match your filters.
           </div>
         ) : (
           <div className="divide-y divide-border">
             <div className="hidden md:grid grid-cols-12 gap-3 px-4 py-2.5 text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
-              <div className="col-span-5">Title</div>
+              <div className="col-span-4">Title</div>
               <div className="col-span-2">Status</div>
               <div className="col-span-2">Type</div>
               <div className="col-span-1">Priority</div>
               <div className="col-span-1">Pts</div>
+              <div className="col-span-1">Due Date</div>
               <div className="col-span-1 text-right">Actions</div>
             </div>
             {backlog.map((t) => {
@@ -191,7 +214,7 @@ export default function Backlog() {
                   whileHover={{ backgroundColor: "rgba(255,96,68,0.04)" }}
                   className="grid grid-cols-12 gap-3 px-4 py-3 items-center"
                 >
-                  <button onClick={() => dispatch(openTask(t.id))} className="col-span-12 md:col-span-5 text-left text-sm font-medium hover:text-[color:var(--primary)] truncate">
+                  <button onClick={() => dispatch(openTask(t.id))} className="col-span-12 md:col-span-4 text-left text-sm font-medium hover:text-[color:var(--primary)] truncate">
                     {t.title}
                   </button>
                   <div className="col-span-3 md:col-span-2">
@@ -215,7 +238,20 @@ export default function Backlog() {
                   <div className="col-span-3 md:col-span-2"><Badge tone={typeTone(t.type)} className="border-transparent">{t.type}</Badge></div>
                   <div className="col-span-3 md:col-span-1"><Badge tone={priorityTone(t.priority)}>{t.priority}</Badge></div>
                   <div className="col-span-2 md:col-span-1 text-sm text-muted-foreground">{t.points ?? "—"}</div>
-                  <div className="col-span-4 md:col-span-1 flex justify-end gap-1">
+                  <div className="col-span-3 md:col-span-1 text-xs text-muted-foreground flex items-center">
+                    {t.dueDate ? (
+                      <span className={cn(
+                        "inline-flex items-center gap-1 px-1.5 py-0.5 rounded",
+                        new Date(t.dueDate) < new Date() ? "bg-red-500/10 text-red-500 font-medium" : "text-muted-foreground"
+                      )}>
+                        <Calendar size={12} />
+                        {new Date(t.dueDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                      </span>
+                    ) : (
+                      <span className="opacity-40">—</span>
+                    )}
+                  </div>
+                  <div className="col-span-9 md:col-span-1 flex justify-end gap-1">
                     {isProjectLead && (
                       <button onClick={() => addToSprint(t)} title="Add to active sprint"
                         className="p-1.5 rounded-md hover:bg-foreground/5 text-muted-foreground hover:text-[color:var(--primary)]">

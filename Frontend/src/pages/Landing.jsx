@@ -4,63 +4,44 @@ import { useSelector } from "react-redux";
 import {
   Sparkles,
   ArrowRight,
-  Check,
   Trello,
   Users,
   BarChart3,
   Layers,
   Boxes,
-  Star,
   Twitter,
   Github,
   Linkedin,
 } from "lucide-react";
 import Button from "@/components/common/Button";
 import { GlassCard } from "@/components/common/Primitives";
+import { cn } from "@/lib/utils";
 
 const features = [
   {
     icon: Trello,
-    title: "Kanban that feels alive",
-    body: "Smooth drag-and-drop, instant updates, and layout animations across every column.",
+    title: "SDC Kanban Boards",
+    body: "Track project tasks in real time with smooth drag-and-drop columns, instant sync, and layout animations.",
   },
   {
     icon: Layers,
-    title: "Agile sprints, organised",
-    body: "Plan sprints, drag from the backlog, watch velocity in real time.",
+    title: "Sprint Cycles",
+    body: "Plan community project sprints, set milestones, and organize student coding tasks collaboratively.",
   },
   {
     icon: Users,
-    title: "Built for teams",
-    body: "Admins, leads, developers — clear roles, clear ownership.",
+    title: "Developer Roles",
+    body: "Define roles for Admins, Project Leads, and Student Developers to keep project tracks organized.",
   },
   {
     icon: BarChart3,
-    title: "Workload analytics",
-    body: "Spot bottlenecks before they happen with calm, glanceable charts.",
+    title: "Activity & Velocity",
+    body: "Monitor progress statistics and sprints during reviews with SDC coordinators and leads.",
   },
   {
     icon: Boxes,
-    title: "Multi-project at home",
-    body: "Group projects in workspaces. Switch in a click.",
-  },
-];
-
-const testimonials = [
-  {
-    name: "Priya Shah",
-    role: "Engineering Manager, Northwind",
-    q: "We replaced two tools with Iterix. The team actually looks forward to standup now.",
-  },
-  {
-    name: "Tom Becker",
-    role: "Product Lead, Foliant",
-    q: "Finally a Kanban that doesn't get in the way. The motion makes status changes feel deliberate.",
-  },
-  {
-    name: "Aiko Tanaka",
-    role: "Founder, Pebbleworks",
-    q: "The light theme alone made me switch. It just feels expensive.",
+    title: "Workspaces",
+    body: "Dedicated workspaces for SDC open-source repositories, university hackathons, and software cells.",
   },
 ];
 
@@ -68,7 +49,7 @@ export default function Landing() {
   const navigate = useNavigate();
   const isAuthenticated = useSelector((s) => s.auth.isAuthenticated);
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col bg-background">
       {/* Nav */}
       <header className="sticky top-0 z-30 backdrop-blur-xl bg-background/70 border-b border-border">
         <div className="max-w-7xl mx-auto h-16 px-6 flex items-center gap-8">
@@ -80,13 +61,13 @@ export default function Landing() {
           </Link>
           <nav className="hidden md:flex items-center gap-7 text-sm text-muted-foreground">
             <a href="#features" className="hover:text-foreground transition-colors">
-              Features
-            </a>
-            <a href="#testimonials" className="hover:text-foreground transition-colors">
-              Customers
+              Portal Features
             </a>
             <a href="#about" className="hover:text-foreground transition-colors">
-              About
+              Access Guidelines
+            </a>
+            <a href="https://sdc-frontend-g6el.onrender.com/" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">
+              SDC Website
             </a>
           </nav>
           <div className="ml-auto flex items-center gap-2">
@@ -100,7 +81,7 @@ export default function Landing() {
                   Sign in
                 </Button>
                 <Button onClick={() => navigate("/login")}>
-                  Get started <ArrowRight size={15} />
+                  Access Portal <ArrowRight size={15} />
                 </Button>
               </>
             )}
@@ -109,9 +90,9 @@ export default function Landing() {
       </header>
 
       <div className="flex-1 overflow-auto">
-        {/* Hero */}
-        <section className="relative overflow-hidden">
-          <div className="max-w-7xl mx-auto px-6 pt-20 md:pt-28 pb-20 grid lg:grid-cols-12 gap-10 items-center">
+        {/* Hero Section - Alternating Background: base */}
+        <section className="relative overflow-hidden py-16 md:py-24">
+          <div className="max-w-7xl mx-auto px-6 grid lg:grid-cols-12 gap-10 items-center">
             <div className="lg:col-span-6">
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
@@ -119,8 +100,8 @@ export default function Landing() {
                 transition={{ duration: 0.5 }}
                 className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full glass-flat text-xs text-muted-foreground mb-6"
               >
-                <span className="w-1.5 h-1.5 rounded-full bg-[color:var(--primary)]" />
-                New: smart sprint planning
+                <span className="w-1.5 h-1.5 rounded-full bg-[color:var(--primary)] animate-pulse" />
+                SDC (Developer's Community) · Medicaps University
               </motion.div>
               <motion.h1
                 initial={{ opacity: 0, y: 12 }}
@@ -128,7 +109,7 @@ export default function Landing() {
                 transition={{ duration: 0.5, delay: 0.05 }}
                 className="font-display text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight leading-[1.02]"
               >
-                The project tool your team will actually open.
+                The internal project space for SDC developers.
               </motion.h1>
               <motion.p
                 initial={{ opacity: 0, y: 12 }}
@@ -136,45 +117,33 @@ export default function Landing() {
                 transition={{ duration: 0.5, delay: 0.1 }}
                 className="mt-6 text-lg text-muted-foreground max-w-xl"
               >
-                Iterix brings together Kanban, sprints, and team workload into one calm, premium
-                workspace — without the bloat.
+                Iterix is the private project workspace for SDC members at Medicaps. Coordinate student coding sprints, manage backlog items, and collaborate in one unified workspace.
               </motion.p>
               <motion.div
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: 0.15 }}
-                className="mt-8 flex flex-wrap items-center gap-3"
+                className="mt-8"
               >
                 {isAuthenticated ? (
                   <Button size="lg" onClick={() => navigate("/app/dashboard")}>
                     Go to Dashboard <ArrowRight size={16} />
                   </Button>
                 ) : (
-                  <Button size="lg" onClick={() => navigate("/login")}>
-                    Start free <ArrowRight size={16} />
-                  </Button>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <Button size="lg" onClick={() => navigate("/login")}>
+                      Sign in as Member <ArrowRight size={16} />
+                    </Button>
+                    <Button
+                      size="lg"
+                      variant="outline"
+                      onClick={() => window.open("https://sdc-frontend-g6el.onrender.com/", "_blank")}
+                    >
+                      Visit SDC Website
+                    </Button>
+                  </div>
                 )}
-                <Button
-                  size="lg"
-                  variant="outline"
-                  onClick={() =>
-                    document.getElementById("features")?.scrollIntoView({ behavior: "smooth" })
-                  }
-                >
-                  Explore features
-                </Button>
               </motion.div>
-              <div className="mt-8 flex flex-wrap items-center gap-5 text-xs text-muted-foreground">
-                <span className="flex items-center gap-1.5">
-                  <Check size={14} className="text-[color:var(--primary)]" /> No credit card
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <Check size={14} className="text-[color:var(--primary)]" /> 14-day trial
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <Check size={14} className="text-[color:var(--primary)]" /> Unlimited projects
-                </span>
-              </div>
             </div>
 
             <motion.div
@@ -188,14 +157,14 @@ export default function Landing() {
           </div>
         </section>
 
-        {/* Features */}
-        <section id="features" className="py-24 border-t border-border">
+        {/* Features Section - Alternating Background: subtle gray tint */}
+        <section id="features" className="py-24 border-t border-b border-border bg-foreground/[0.015]">
           <div className="max-w-7xl mx-auto px-6">
             <div className="max-w-2xl">
               <h2 className="font-display text-4xl md:text-5xl font-bold tracking-tight">
-                Everything your team needs.
+                Designed for SDC projects.
                 <br />
-                <span className="text-muted-foreground">Nothing it doesn't.</span>
+                <span className="text-muted-foreground">Streamlining workflow within the Developer's Community.</span>
               </h2>
             </div>
             <div className="mt-14 grid md:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -220,71 +189,17 @@ export default function Landing() {
           </div>
         </section>
 
-        {/* Screenshots strip */}
-        <section className="py-20 border-t border-border">
-          <div className="max-w-7xl mx-auto px-6">
-            <h2 className="font-display text-3xl md:text-4xl font-bold tracking-tight max-w-xl">
-              A workspace that scales from solo to 200 engineers.
-            </h2>
-            <div className="mt-12 grid md:grid-cols-3 gap-5">
-              {["Kanban board", "Sprint planning", "Team analytics"].map((label, i) => (
-                <motion.div
-                  key={label}
-                  initial={{ opacity: 0, y: 14 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ duration: 0.4, delay: i * 0.05 }}
-                  className="glass overflow-hidden p-0"
-                >
-                  <ScreenMock variant={i} />
-                  <div className="p-4 text-sm font-medium">{label}</div>
-                </motion.div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* Testimonials */}
-        <section id="testimonials" className="py-24 border-t border-border">
-          <div className="max-w-7xl mx-auto px-6">
-            <h2 className="font-display text-4xl md:text-5xl font-bold tracking-tight max-w-2xl">
-              Loved by product teams who care about craft.
-            </h2>
-            <div className="mt-12 grid md:grid-cols-3 gap-5">
-              {testimonials.map((t, i) => (
-                <motion.div
-                  key={t.name}
-                  initial={{ opacity: 0, y: 14 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ duration: 0.4, delay: i * 0.05 }}
-                >
-                  <GlassCard className="h-full">
-                    <div className="flex gap-1 text-[color:var(--primary)] mb-4">
-                      {[...Array(5)].map((_, i) => (
-                        <Star key={i} size={14} fill="currentColor" />
-                      ))}
-                    </div>
-                    <p className="text-sm leading-relaxed mb-5">"{t.q}"</p>
-                    <div className="text-xs">
-                      <span className="font-semibold">{t.name}</span>
-                      <span className="text-muted-foreground"> — {t.role}</span>
-                    </div>
-                  </GlassCard>
-                </motion.div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* CTA */}
-        <section id="about" className="py-24 border-t border-border">
+        {/* Access Guidelines Section - Alternating Background: base */}
+        <section id="about" className="py-24">
           <div className="max-w-3xl mx-auto px-6 text-center">
             <h2 className="font-display text-4xl md:text-5xl font-bold tracking-tight">
-              Ship the next sprint, calmly.
+              SDC Internal Workspace Access
             </h2>
-            <p className="mt-5 text-muted-foreground">
-              Set up your first workspace in under a minute.
+            <p className="mt-5 text-muted-foreground leading-relaxed">
+              This system is restricted to registered members of the Developer's Community at Medicaps University. Authorized student developers, coordinators, and leads can log in to access workspace repositories.
+            </p>
+            <p className="mt-2 text-xs text-muted-foreground/80">
+              For account access questions or registration, please contact your SDC cell lead.
             </p>
             <div className="mt-8">
               {isAuthenticated ? (
@@ -293,7 +208,7 @@ export default function Landing() {
                 </Button>
               ) : (
                 <Button size="lg" onClick={() => navigate("/login")}>
-                  Create your workspace <ArrowRight size={16} />
+                  Sign in to Access <ArrowRight size={16} />
                 </Button>
               )}
             </div>
@@ -302,16 +217,22 @@ export default function Landing() {
       </div>
 
       {/* Footer */}
-      <footer className="border-t border-border py-10">
+      <footer className="border-t border-border py-10 bg-foreground/[0.01]">
         <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
           <div className="flex items-center gap-2">
             <div className="w-6 h-6 rounded-md bg-[color:var(--primary)] flex items-center justify-center text-white">
               <Sparkles size={12} />
             </div>
             <span className="font-display font-semibold text-foreground">Iterix</span>
+            <span>·</span>
+            <span>SDC · Medicaps University</span>
             <span>© {new Date().getFullYear()}</span>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-5">
+            <a href="https://sdc-frontend-g6el.onrender.com/" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors font-medium">
+              SDC Website
+            </a>
+            <span className="text-muted-foreground/30">|</span>
             <a href="#" className="hover:text-foreground">
               <Twitter size={16} />
             </a>
@@ -336,14 +257,14 @@ function ProductMock() {
         <span className="w-2.5 h-2.5 rounded-full bg-foreground/20" />
         <span className="w-2.5 h-2.5 rounded-full bg-foreground/20" />
         <span className="mx-auto text-[11px] text-muted-foreground">
-          Iterix.app / atlas / board
+          Iterix.app / medicaps / board
         </span>
       </div>
       <div className="p-4 grid grid-cols-3 gap-3 bg-foreground/[0.02]">
         {["Todo", "In Progress", "Done"].map((col, c) => (
           <div key={col} className="glass-flat p-3">
             <div className="flex items-center justify-between text-[11px] font-medium text-muted-foreground mb-2.5">
-     sp         <span className="uppercase tracking-wider">{col}</span>
+              <span className="uppercase tracking-wider">{col}</span>
               <span>{c === 0 ? 4 : c === 1 ? 2 : 3}</span>
             </div>
             <div className="space-y-2">
@@ -355,7 +276,7 @@ function ProductMock() {
                   transition={{ delay: 0.4 + (c * 3 + i) * 0.05 }}
                   className="rounded-[10px] bg-background/60 border border-border p-2.5"
                 >
-                  <div className="text-[11px] text-muted-foreground">ATL-{12 + c * 3 + i}</div>
+                  <div className="text-[11px] text-muted-foreground">MCU-{12 + c * 3 + i}</div>
                   <div className="text-[12px] font-medium mt-0.5">
                     {
                       [
@@ -381,60 +302,4 @@ function ProductMock() {
       </div>
     </div>
   );
-}
-
-function ScreenMock({ variant }) {
-  if (variant === 1) {
-    return (
-      <div className="aspect-[16/10] bg-foreground/[0.03] p-4">
-        <div className="flex justify-between mb-3">
-          <div className="h-3 w-32 bg-foreground/10 rounded" />
-          <div className="h-3 w-16 bg-foreground/10 rounded" />
-        </div>
-        <div className="space-y-2">
-          {[0, 1, 2, 3, 4].map((i) => (
-            <div
-              key={i}
-              className="h-9 rounded-lg bg-background/60 border border-border flex items-center px-3 gap-3"
-            >
-              <div className="w-1 h-5 rounded-full bg-[color:var(--primary)]/60" />
-              <div className="h-2.5 flex-1 bg-foreground/10 rounded" />
-              <div className="h-2.5 w-12 bg-foreground/10 rounded" />
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
-  if (variant === 2) {
-    return (
-      <div className="aspect-[16/10] bg-foreground/[0.03] p-4 grid grid-cols-2 gap-3">
-        <div className="glass-flat p-3">
-          <div className="h-2.5 w-20 bg-foreground/10 rounded mb-3" />
-          <div className="h-24 flex items-end gap-1.5">
-            {[0.4, 0.7, 0.5, 0.85, 0.6, 0.95].map((h, i) => (
-              <div
-                key={i}
-                className="flex-1 rounded-t-sm bg-[color:var(--primary)]/50"
-                style={{ height: `${h * 100}%` }}
-              />
-            ))}
-          </div>
-        </div>
-        <div className="glass-flat p-3">
-          <div className="h-2.5 w-24 bg-foreground/10 rounded mb-3" />
-          <div className="space-y-2">
-            {[0, 1, 2, 3].map((i) => (
-              <div
-                key={i}
-                className="h-3 bg-foreground/10 rounded"
-                style={{ width: `${90 - i * 15}%` }}
-              />
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  }
-  return <ProductMock />;
 }

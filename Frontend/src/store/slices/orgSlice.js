@@ -71,6 +71,19 @@ export const fetchMyInvitations = createAsyncThunk(
   }
 );
 
+/** Cancel workspace invitation */
+export const cancelInvitationAsync = createAsyncThunk(
+  "org/cancelInvitation",
+  async (invitationId, { rejectWithValue }) => {
+    try {
+      const res = await invitationApi.cancelInvitation(invitationId);
+      return { invitationId, ...res.data }; // { success, message }
+    } catch (err) {
+      return rejectWithValue(err.response?.data || { message: "Failed to cancel invitation" });
+    }
+  }
+);
+
 /** Update workspace member role */
 export const updateMemberRoleAsync = createAsyncThunk(
   "org/updateMemberRole",
@@ -250,6 +263,12 @@ const slice = createSlice({
     builder
       .addCase(removeMemberAsync.fulfilled, (state, { payload }) => {
         state.members = state.members.filter(m => m.id !== payload.memberId);
+      });
+
+    /* cancelInvitationAsync */
+    builder
+      .addCase(cancelInvitationAsync.fulfilled, (state, { payload }) => {
+        state.invitations = state.invitations.filter(i => i.id !== payload.invitationId);
       });
   },
 });
