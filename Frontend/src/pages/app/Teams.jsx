@@ -7,7 +7,17 @@ import Button from "@/components/common/Button";
 import Modal from "@/components/common/Modal";
 import Avatar from "@/components/common/Avatar";
 import { roleLabel, roleTone, formatRelative } from "@/lib/format";
-import { inviteMemberAsync, acceptInvitationAsync, fetchWorkspaceInvitations, fetchMembers, updateMemberRoleAsync, removeMemberAsync, cancelInvitationAsync } from "@/store/slices/orgSlice";
+import {
+  inviteMemberAsync,
+  acceptInvitationAsync,
+  fetchWorkspaceInvitations,
+  fetchMembers,
+  updateMemberRoleAsync,
+  removeMemberAsync,
+  cancelInvitationAsync,
+  fetchWorkspaceJoinRequests,
+  resolveJoinRequestAsync,
+} from "@/store/slices/orgSlice";
 import { fetchProjectMembers, addProjectMemberAsync, removeProjectMemberAsync, updateProjectMemberRoleAsync } from "@/store/slices/projectsSlice";
 import { ROLES } from "@/store/seed";
 
@@ -18,6 +28,7 @@ export default function Teams() {
   // Workspace Members & Invites
   const workspaceMembers = useSelector(s => s.org.members) || [];
   const invitations = useSelector(s => s.org.invitations) || [];
+  const joinRequests = useSelector(s => s.org.joinRequests) || [];
   const currentWorkspaceId = useSelector(s => s.workspace.currentWorkspaceId);
   const myWorkspaceMember = workspaceMembers.find(m => m && m.id === user?.id) || { ...user, role: ROLES.DEVELOPER };
   const isWorkspaceAdmin = myWorkspaceMember.role === ROLES.ADMIN;
@@ -69,6 +80,7 @@ export default function Teams() {
   useEffect(() => {
     if (currentWorkspaceId && isWorkspaceAdmin) {
       dispatch(fetchWorkspaceInvitations(currentWorkspaceId));
+      dispatch(fetchWorkspaceJoinRequests(currentWorkspaceId));
     }
   }, [dispatch, currentWorkspaceId, isWorkspaceAdmin]);
 
@@ -343,8 +355,63 @@ export default function Teams() {
                   </div>
                 </div>
               ))
-            )}
-          </GlassCard>
+            )}          </GlassCard>
+ 
+          {/* Join Requests list (Admin only) */}
+          {isWorkspaceAdmin && (
+            <GlassCard>
+              <h3 className="font-display font-semibold mb-3 flex items-center gap-2"><Users size={15} /> Join Requests</h3>
+              {joinRequests.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-6 text-center">No pending join requests.</p>
+              ) : (
+                <ul className="divide-y divide-border -mx-2">
+                  {joinRequests.map(req => (
+                    <li key={req.id} className="px-2 py-3 flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0 flex-1">
+                        <div className="w-9 h-9 rounded-full bg-foreground/5 flex items-center justify-center text-muted-foreground"><Users size={14} /></div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-medium truncate">{req.user?.name || "Unknown User"} — <span className="text-muted-foreground">{req.email}</span></div>
+                          <div className="text-xs text-muted-foreground">Requested {formatRelative(req.createdAt)}</div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          onClick={async () => {
+                            const res = await dispatch(resolveJoinRequestAsync({ requestId: req.id, action: "ACCEPT" }));
+                            if (resolveJoinRequestAsync.fulfilled.match(res)) {
+                              toast.success("Join request accepted successfully");
+                              if (currentWorkspaceId) {
+                                dispatch(fetchMembers(currentWorkspaceId));
+                              }
+                            } else {
+                              toast.error(res.payload?.message || "Failed to accept request");
+                            }
+                          }}
+                        >
+                          Accept
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={async () => {
+                            const res = await dispatch(resolveJoinRequestAsync({ requestId: req.id, action: "REJECT" }));
+                            if (resolveJoinRequestAsync.fulfilled.match(res)) {
+                              toast.success("Join request rejected successfully");
+                            } else {
+                              toast.error(res.payload?.message || "Failed to reject request");
+                            }
+                          }}
+                        >
+                          Reject
+                        </Button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </GlassCard>
+          )}
 
           {/* Invitations list */}
           <GlassCard>

@@ -1,6 +1,7 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import * as workspaceApi from "@/services/workspace.api";
 import * as invitationApi from "@/services/invitation.api";
+import * as joinRequestApi from "@/services/joinRequest.api";
 import { uid } from "@/lib/uid";
 import { ROLES } from "../seed";
 
@@ -110,6 +111,58 @@ export const removeMemberAsync = createAsyncThunk(
   }
 );
 
+/** Fetch pending join requests for a workspace (admin only) */
+export const fetchWorkspaceJoinRequests = createAsyncThunk(
+  "org/fetchJoinRequests",
+  async (workspaceId, { rejectWithValue }) => {
+    try {
+      const res = await joinRequestApi.getWorkspaceJoinRequests(workspaceId);
+      return res.data;
+    } catch (err) {
+      return rejectWithValue(err.response?.data || { message: "Failed to load join requests" });
+    }
+  }
+);
+
+/** Submit a join request for a workspace */
+export const submitJoinRequestAsync = createAsyncThunk(
+  "org/submitJoinRequest",
+  async (workspaceId, { rejectWithValue }) => {
+    try {
+      const res = await joinRequestApi.createJoinRequest(workspaceId);
+      return res.data;
+    } catch (err) {
+      return rejectWithValue(err.response?.data || { message: "Failed to submit join request" });
+    }
+  }
+);
+
+/** Fetch the current user's pending join requests */
+export const fetchMyJoinRequestsAsync = createAsyncThunk(
+  "org/fetchMyJoinRequests",
+  async (_, { rejectWithValue }) => {
+    try {
+      const res = await joinRequestApi.getMyJoinRequests();
+      return res.data;
+    } catch (err) {
+      return rejectWithValue(err.response?.data || { message: "Failed to load my join requests" });
+    }
+  }
+);
+
+/** Resolve a join request (admin only) */
+export const resolveJoinRequestAsync = createAsyncThunk(
+  "org/resolveJoinRequest",
+  async ({ requestId, action }, { rejectWithValue }) => {
+    try {
+      const res = await joinRequestApi.resolveJoinRequest(requestId, action);
+      return { requestId, action, ...res.data };
+    } catch (err) {
+      return rejectWithValue(err.response?.data || { message: "Failed to resolve join request" });
+    }
+  }
+);
+
 /* ─── Slice ───────────────────────────────────────────────────────────── */
 const slice = createSlice({
   name: "org",
@@ -118,6 +171,8 @@ const slice = createSlice({
     members: [], // [{id, orgId, name, email, role, avatarColor}]
     invitations: [], // [{id, orgId, name, email, role, status, sentAt}]
     myInvitations: [], // [{id, name, role, status, sentAt}] - invitations received by user
+    joinRequests: [],
+    myJoinRequests: [],
     loading: false,
     error: null,
   },
@@ -269,6 +324,46 @@ const slice = createSlice({
     builder
       .addCase(cancelInvitationAsync.fulfilled, (state, { payload }) => {
         state.invitations = state.invitations.filter(i => i.id !== payload.invitationId);
+      });
+
+    /* fetchWorkspaceJoinRequests */
+    builder
+      .addCase(fetchWorkspaceJoinRequests.fulfilled, (state, { payload }) => {
+        state.joinRequests = (payload.data || []).map(req => ({
+          ...req,
+          id: req.id || req._id,
+        }));
+      });
+
+    /* submitJoinRequestAsync */
+    builder
+      .addCase(submitJoinRequestAsync.fulfilled, (state, { payload }) => {
+        const req = payload.data;
+        if (req) {
+          state.myJoinRequests.push({
+            ...req,
+            id: req.id || req._id,
+          });
+        }
+      })
+      .addCase(submitJoinRequestAsync.rejected, (state, { payload }) => {
+        state.error = payload?.message;
+      });
+
+    /* fetchMyJoinRequestsAsync */
+    builder
+      .addCase(fetchMyJoinRequestsAsync.fulfilled, (state, { payload }) => {
+        state.myJoinRequests = (payload.data || []).map(req => ({
+          ...req,
+          id: req.id || req._id,
+        }));
+      });
+
+    /* resolveJoinRequestAsync */
+    builder
+      .addCase(resolveJoinRequestAsync.fulfilled, (state, { payload }) => {
+        const { requestId } = payload;
+        state.joinRequests = state.joinRequests.filter(req => req.id !== requestId);
       });
   },
 });

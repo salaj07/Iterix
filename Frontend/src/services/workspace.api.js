@@ -39,3 +39,8 @@ export const removeWorkspaceMember = (workspaceId, memberId) =>
 /** Clear all data inside a workspace */
 export const clearWorkspaceData = (workspaceId) =>
   api.post(`/api/workspaces/${workspaceId}/clear`);
+
+/** List all active workspaces in system */
+export const listAllWorkspaces = () =>
+  api.get("/api/workspaces/all/list");
+

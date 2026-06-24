@@ -16,6 +16,9 @@ router.post("/", protect, createWorkspaceRules, validate, workspaceController.cr
 // Get all workspaces for logged-in user
 router.get("/", protect, workspaceController.getUserWorkspaces);
 
+// List all active workspaces in system
+router.get("/all/list", protect, workspaceController.listAllWorkspaces);
+
 // Get workspace members
 router.get("/:workspaceId/members", protect, workspaceIdRules, validate, workspaceController.getWorkspaceMembers);
 

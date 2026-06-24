@@ -274,6 +274,10 @@ const clearWorkspaceData = async (currentUser, workspaceId) => {
   await Project.deleteMany({ workspace: workspaceId });
 };
 
+const listAllWorkspaces = async () => {
+  return await Workspace.find({ isActive: true }).select("name description");
+};
+
 module.exports = {
   createWorkspace,
   getUserWorkspaces,
@@ -284,4 +288,5 @@ module.exports = {
   updateMemberRole,
   removeMember,
   clearWorkspaceData,
+  listAllWorkspaces,
 };
