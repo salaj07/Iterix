@@ -56,7 +56,11 @@ export default function KanbanBoard({ projectId = null, sprintId = undefined, se
     return acc;
   }, {});
 
+  const project = projects.find(p => p && (p.id === projectId || p._id === projectId));
+  const isViewer = project?.memberRole === "VIEWER";
+
   const onDragEnd = (result) => {
+    if (isViewer) return;
     const { destination, source, draggableId } = result;
     if (!destination) return;
     if (destination.droppableId === source.droppableId && destination.index === source.index) return;
@@ -64,7 +68,6 @@ export default function KanbanBoard({ projectId = null, sprintId = undefined, se
     const oldStatus = source.droppableId;
 
     if (newStatus === "Done") {
-      const project = projects.find(p => p && (p.id === projectId || p._id === projectId));
       const myProjectMember = projectMembers.find(pm => pm && (pm.id === user?.id || pm.userId === user?.id || (pm.user && pm.user._id === user?.id)));
       const isProjectLead = project && (
         project.memberRole === "TEAM_LEAD" ||
@@ -86,6 +89,7 @@ export default function KanbanBoard({ projectId = null, sprintId = undefined, se
   };
 
   const onArchive = (e, taskId, title) => {
+    if (isViewer) return;
     e.stopPropagation();
     dispatch(archiveTask({ id: taskId, by: user?.id }));
     dispatch(updateTaskDetailsAsync({ taskId, data: { archived: true } }));
@@ -104,6 +108,7 @@ export default function KanbanBoard({ projectId = null, sprintId = undefined, se
             onCardClick={(id) => dispatch(openTask(id))}
             onAddTask={() => onCreateTask?.(status)}
             onArchive={onArchive}
+            isViewer={isViewer}
           />
         ))}
       </div>
@@ -111,7 +116,7 @@ export default function KanbanBoard({ projectId = null, sprintId = undefined, se
   );
 }
 
-function Column({ status, tasks, members, onCardClick, onAddTask, onArchive }) {
+function Column({ status, tasks, members, onCardClick, onAddTask, onArchive, isViewer }) {
   return (
     <div className="w-[85vw] sm:w-[300px] shrink-0 snap-start">
       <div className="flex items-center justify-between mb-3 px-1">
@@ -120,9 +125,11 @@ function Column({ status, tasks, members, onCardClick, onAddTask, onArchive }) {
           <span className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground">{status}</span>
           <span className="text-[11px] text-muted-foreground bg-foreground/5 rounded-full px-1.5">{tasks.length}</span>
         </div>
-        <button onClick={onAddTask} className="p-1 rounded-md hover:bg-foreground/5 text-muted-foreground">
-          <Plus size={14} />
-        </button>
+        {!isViewer && (
+          <button onClick={onAddTask} className="p-1 rounded-md hover:bg-foreground/5 text-muted-foreground">
+            <Plus size={14} />
+          </button>
+        )}
       </div>
       <Droppable droppableId={status}>
         {(provided, snapshot) => (
@@ -136,7 +143,7 @@ function Column({ status, tasks, members, onCardClick, onAddTask, onArchive }) {
             )}
           >
             {tasks.map((task, idx) => (
-              <Draggable key={task.id} draggableId={task.id} index={idx}>
+              <Draggable key={task.id} draggableId={task.id} index={idx} isDragDisabled={isViewer}>
                 {(prov, snap) => (
                   <div
                     ref={prov.innerRef}
@@ -150,7 +157,7 @@ function Column({ status, tasks, members, onCardClick, onAddTask, onArchive }) {
                     style={prov.draggableProps.style}
                     >
                     <TaskCardContent task={task} members={members} />
-                    {status === "Done" && (
+                    {status === "Done" && !isViewer && (
                       <button
                         onClick={(e) => onArchive(e, task.id, task.title)}
                         className="mt-3 w-full inline-flex items-center justify-center gap-1.5 text-[11px] font-medium px-2 py-1.5 rounded-[10px] bg-[color:var(--primary)]/10 text-[color:var(--primary)] hover:bg-[color:var(--primary)]/20 transition-colors"

@@ -81,15 +81,15 @@ const getProjectSprints = async (projectId, currentUser) => {
     throw new Error("Project not found");
   }
 
-  // Check if workspace ADMIN
-  const isAdmin = await WorkspaceMember.findOne({
+  // Check if workspace ADMIN or TEAM_LEAD
+  const isWorkspaceLeadOrAdmin = await WorkspaceMember.findOne({
     workspace: project.workspace,
     user: currentUser._id,
-    role: "ADMIN",
+    role: { $in: ["ADMIN", "TEAM_LEAD"] },
     isActive: true,
   });
 
-  if (!isAdmin) {
+  if (!isWorkspaceLeadOrAdmin) {
     const membership = await ProjectMember.findOne({
       project: projectId,
       user: currentUser._id,

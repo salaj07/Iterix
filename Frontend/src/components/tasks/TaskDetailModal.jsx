@@ -72,13 +72,14 @@ export default function TaskDetailModal({ taskId, onClose }) {
   const projectSprints = (sprints || []).filter(s => s && s.projectId === task.projectId);
   const role = me?.role;
   const projectRole = project?.memberRole || "DEVELOPER";
+  const isViewer = projectRole === "VIEWER";
   const isDeveloper = projectRole === "DEVELOPER";
   const isMeAdmin = me?.role === "ADMIN";
   const isMeLead = project?.teamLeadId === user?.id || project?.createdBy === user?.id || (
     (project?.id === currentProjectId || project?._id === currentProjectId) &&
     storeProjectMembers.some(x => (x.id || x.userId || x.user?._id || x.user) === user?.id && x.role === "TEAM_LEAD")
   );
-  const isDevRestricted = isDeveloper && !isMeAdmin && !isMeLead;
+  const isDevRestricted = isViewer || (isDeveloper && !isMeAdmin && !isMeLead);
   const projectMembers = storeProjectMembers.map(pm => {
     const memberUser = pm.user || pm;
     const userId = pm.id || pm.userId || memberUser._id || memberUser.id || pm.user;
@@ -87,13 +88,13 @@ export default function TaskDetailModal({ taskId, onClose }) {
     return { id: String(userId), name, email };
   }).filter(m => m.id);
   const isAssignee = task.assigneeId && task.assigneeId === user?.id;
-  const canMoveAny = can(role, ACTIONS.MOVE_TASK_ANY);
-  const canReview = can(role, ACTIONS.APPROVE_TASK) && task.status === "In Review";
-  const canSubmitForReview = task.status === "In Progress" && (canMoveAny || isAssignee);
-  const canStartTodo = task.status === "Todo" && (canMoveAny || isAssignee);
-  const canPickFromBacklog = task.status === "Backlog" && canMoveAny;
-  const canDelete = can(role, ACTIONS.DELETE_TASK);
-  const canEditFields = canMoveAny || isAssignee;
+  const canMoveAny = !isViewer && can(role, ACTIONS.MOVE_TASK_ANY);
+  const canReview = !isViewer && can(role, ACTIONS.APPROVE_TASK) && task.status === "In Review";
+  const canSubmitForReview = !isViewer && task.status === "In Progress" && (canMoveAny || isAssignee);
+  const canStartTodo = !isViewer && task.status === "Todo" && (canMoveAny || isAssignee);
+  const canPickFromBacklog = !isViewer && task.status === "Backlog" && canMoveAny;
+  const canDelete = !isViewer && can(role, ACTIONS.DELETE_TASK);
+  const canEditFields = !isViewer && (canMoveAny || isAssignee);
 
   const submitComment = () => {
     if (!comment.trim()) return;
@@ -134,14 +135,16 @@ export default function TaskDetailModal({ taskId, onClose }) {
           </div>
 
           <input
+            disabled={isViewer}
             value={edited.title !== undefined ? edited.title : task.title}
             onChange={(e) => setEdited(prev => ({ ...prev, title: e.target.value }))}
-            className="w-full bg-transparent text-2xl font-display font-bold outline-none border-b border-transparent focus:border-border pb-1"
+            className="w-full bg-transparent text-2xl font-display font-bold outline-none border-b border-transparent focus:border-border pb-1 disabled:opacity-80"
           />
 
           <div>
             <div className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1.5">Description</div>
             <Textarea
+              disabled={isViewer}
               value={edited.description !== undefined ? edited.description : (task.description || "")}
               placeholder="Add a description…"
               onChange={(e) => setEdited(prev => ({ ...prev, description: e.target.value }))}
@@ -158,21 +161,25 @@ export default function TaskDetailModal({ taskId, onClose }) {
             <div className="space-y-1.5">
               {task.subtasks.map(s => (
                 <button key={s.id} onClick={() => {
+                  if (isViewer) return;
                   const updatedSubtasks = (task.subtasks || []).map(sub =>
                     sub.id === s.id ? { ...sub, done: !sub.done } : sub
                   );
                   dispatch(updateTaskDetailsAsync({ taskId: task.id, data: { subtasks: updatedSubtasks } }));
                 }}
-                  className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-md hover:bg-foreground/5 text-left">
+                  disabled={isViewer}
+                  className={`w-full flex items-center gap-2.5 px-2 py-1.5 rounded-md text-left ${isViewer ? "cursor-default opacity-80" : "hover:bg-foreground/5"}`}>
                   {s.done ? <CheckSquare size={16} className="text-[color:var(--primary)]" /> : <Square size={16} className="text-muted-foreground" />}
                   <span className={`text-sm ${s.done ? "line-through text-muted-foreground" : ""}`}>{s.title}</span>
                 </button>
               ))}
-              <div className="flex gap-2 mt-2">
-                <Input className="h-9 text-sm" placeholder="Add subtask…" value={newSub} onChange={(e) => setNewSub(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && addSub()} />
-                <Button variant="outline" size="sm" onClick={addSub}><Plus size={14} /></Button>
-              </div>
+              {!isViewer && (
+                <div className="flex gap-2 mt-2">
+                  <Input className="h-9 text-sm" placeholder="Add subtask…" value={newSub} onChange={(e) => setNewSub(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && addSub()} />
+                  <Button variant="outline" size="sm" onClick={addSub}><Plus size={14} /></Button>
+                </div>
+              )}
             </div>
           </div>
 
@@ -195,15 +202,17 @@ export default function TaskDetailModal({ taskId, onClose }) {
                   </div>
                 );
               })}
-              <div className="flex gap-3 pt-1">
-                <Avatar name={user?.name} color={user?.avatarColor} size={30} />
-                <div className="flex-1 flex gap-2">
-                  <Input className="h-10" placeholder="Add a comment…" value={comment}
-                    onChange={(e) => setComment(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && submitComment()} />
-                  <Button size="md" onClick={submitComment}><Send size={14} /></Button>
+              {!isViewer && (
+                <div className="flex gap-3 pt-1">
+                  <Avatar name={user?.name} color={user?.avatarColor} size={30} />
+                  <div className="flex-1 flex gap-2">
+                    <Input className="h-10" placeholder="Add a comment…" value={comment}
+                      onChange={(e) => setComment(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && submitComment()} />
+                    <Button size="md" onClick={submitComment}><Send size={14} /></Button>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
 
@@ -238,7 +247,7 @@ export default function TaskDetailModal({ taskId, onClose }) {
         <div className="space-y-4">
           <div className="glass-flat p-4 space-y-3">
             <Field label="Assignee">
-              <Select value={edited.assigneeId !== undefined ? (edited.assigneeId || "") : (task.assigneeId || "")} onChange={(e) => {
+              <Select disabled={isViewer} value={edited.assigneeId !== undefined ? (edited.assigneeId || "") : (task.assigneeId || "")} onChange={(e) => {
                 const val = e.target.value || null;
                 setEdited(prev => ({ ...prev, assigneeId: val }));
               }}>
@@ -274,7 +283,7 @@ export default function TaskDetailModal({ taskId, onClose }) {
                 }} />
             </Field>
             <Field label="Sprint">
-              <Select value={edited.sprintId !== undefined ? (edited.sprintId || "") : (task.sprintId || "")} onChange={(e) => {
+              <Select disabled={isViewer} value={edited.sprintId !== undefined ? (edited.sprintId || "") : (task.sprintId || "")} onChange={(e) => {
                 const val = e.target.value || null;
                 setEdited(prev => ({ ...prev, sprintId: val }));
               }}>
@@ -291,7 +300,7 @@ export default function TaskDetailModal({ taskId, onClose }) {
             </Field>
           </div>
 
-          {hasChanges && (
+          {hasChanges && !isViewer && (
             <Button variant="primary" className="w-full flex items-center justify-center gap-1.5" onClick={handleUpdate}>
               Update task
             </Button>

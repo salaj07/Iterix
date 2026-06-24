@@ -236,14 +236,14 @@ const getProjectTasks = async (projectId, currentUser) => {
     throw new Error("Project not found");
   }
 
-  const isAdmin = await WorkspaceMember.findOne({
+  const isWorkspaceLeadOrAdmin = await WorkspaceMember.findOne({
     workspace: project.workspace,
     user: currentUser._id,
-    role: "ADMIN",
+    role: { $in: ["ADMIN", "TEAM_LEAD"] },
     isActive: true,
   });
 
-  if (!isAdmin) {
+  if (!isWorkspaceLeadOrAdmin) {
     const membership = await ProjectMember.findOne({
       project: projectId,
       user: currentUser._id,
