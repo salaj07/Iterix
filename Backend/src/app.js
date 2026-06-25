@@ -17,6 +17,9 @@ const joinRequestRoutes = require("./routes/joinRequest.route");
 
 const app = express();
 
+// Trust first-hop proxy (e.g. Nginx, Cloudflare, Heroku, ELB) to correctly resolve client IP address
+app.set("trust proxy", 1);
+
 /* ===========================
    Security
 =========================== */
